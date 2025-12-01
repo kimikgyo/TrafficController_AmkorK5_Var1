@@ -6,13 +6,19 @@ namespace TrafficController.Mappings.Missions
 {
     public class MissionMapping
     {
-        public Get_MissionDto Response(Mission model)
+        public Get_MissionDto Get(Mission model)
         {
             var response = new Get_MissionDto()
             {
+                guid = model.guid,
+                trafficWorker = model.trafficWorker,
+                createdAt = model.createdAt,
+                updatedAt = model.updatedAt,
+                finishedAt = model.finishedAt,
+
                 orderId = model.orderId,
                 jobId = model.jobId,
-                guid = model.guid,
+                acsMissionId = model.acsMissionId,
                 carrierId = model.carrierId,
                 name = model.name,
                 service = model.service,
@@ -26,10 +32,7 @@ namespace TrafficController.Mappings.Missions
                 state = model.state,
                 specifiedWorkerId = model.specifiedWorkerId,
                 assignedWorkerId = model.assignedWorkerId,
-                createdAt = model.createdAt,
-                updatedAt = model.updatedAt,
-                finishedAt = model.finishedAt,
-                sequenceUpdatedAt = model.sequenceUpdatedAt,
+
                 parameters = model.parameters,
                 preReports = model.preReports,
                 postReports = model.postReports
@@ -38,13 +41,19 @@ namespace TrafficController.Mappings.Missions
             return response;
         }
 
-        public Publish_MissionDto MqttPublish(Mission model)
+        public Publish_MissionDto Publish(Mission model)
         {
             var publish = new Publish_MissionDto()
             {
+                guid = model.guid,
+                trafficWorker = model.trafficWorker,
+                createdAt = model.createdAt,
+                updatedAt = model.updatedAt,
+                finishedAt = model.finishedAt,
+
                 orderId = model.orderId,
                 jobId = model.jobId,
-                guid = model.guid,
+                acsMissionId = model.acsMissionId,
                 carrierId = model.carrierId,
                 name = model.name,
                 service = model.service,
@@ -65,21 +74,16 @@ namespace TrafficController.Mappings.Missions
             return publish;
         }
 
-        public Mission MqttUpdateStatus(Mission model, Subscribe_MissionDto missionData)
+        public Mission Post(Post_MissionDto post_Mission)
         {
-            model.state = missionData.state.Replace(" ", "").ToUpper();
-            model.updatedAt = DateTime.Now;
-
-            return model;
-        }
-
-        public Mission ApiRequestDtoPostMission(Post_MissionDto post_Mission)
-        {
-            var apiRequest = new Mission
+            var create = new Mission
             {
+                guid = Guid.NewGuid().ToString(),
+                createdAt = DateTime.Now,
+
                 orderId = post_Mission.orderId,
                 jobId = post_Mission.jobId,
-                guid = post_Mission.guid,
+                acsMissionId = post_Mission.guid,
                 carrierId = post_Mission.carrierId,
                 name = post_Mission.name,
                 service = post_Mission.service,
@@ -90,13 +94,13 @@ namespace TrafficController.Mappings.Missions
                 isLocked = post_Mission.isLocked,
                 sequenceChangeCount = post_Mission.sequenceChangeCount,
                 retryCount = post_Mission.retryCount,
-                state = post_Mission.state,
+                state = nameof(MissionState.PENDING),
                 specifiedWorkerId = post_Mission.specifiedWorkerId,
                 assignedWorkerId = post_Mission.assignedWorkerId,
                 parameters = post_Mission.parameters,
             };
 
-            return apiRequest;
+            return create;
         }
     }
 }

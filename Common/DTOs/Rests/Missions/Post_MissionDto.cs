@@ -22,11 +22,15 @@ namespace Common.DTOs.Rests.Missions
         [JsonPropertyOrder(15)] public string specifiedWorkerId { get; set; }
         [JsonPropertyOrder(16)] public string assignedWorkerId { get; set; }
         [JsonPropertyOrder(17)] public List<Parameter> parameters { get; set; }
+        [JsonPropertyOrder(18)] public List<PreReport> preReports { get; set; }
+        [JsonPropertyOrder(19)] public List<PostReport> postReports { get; set; }
 
         // 사람용 요약 (디버거/로그에서 보기 좋게)
         public override string ToString()
         {
             string parametersStr;
+            string preReportsStr;
+            string postReportsStr;
 
             if (parameters != null && parameters.Count > 0)
             {
@@ -40,8 +44,37 @@ namespace Common.DTOs.Rests.Missions
             else
             {
                 // 값이 없으면 빈 중괄호로 표시
-                parametersStr = "";
+                parametersStr = "{}";
             }
+
+            if (preReports != null && preReports.Count > 0)
+            {
+                // 리스트 안의 Parameter 각각을 { ... } 모양으로 변환
+                var items = preReports
+                    .Select(p => $"{{ ceid={p.ceid}, eventName={p.eventName},rptid = {p.rptid} }}");
+
+                // 여러 개 항목을 ", " 로 이어붙임
+                preReportsStr = string.Join(", ", items);
+            }
+            else
+            {
+                preReportsStr = "{}";
+            }
+
+            if (postReports != null && postReports.Count > 0)
+            {
+                // 리스트 안의 Parameter 각각을 { ... } 모양으로 변환
+                var items = postReports
+                    .Select(p => $"{{ ceid={p.ceid}, eventName={p.eventName},rptid = {p.rptid} }}");
+
+                // 여러 개 항목을 ", " 로 이어붙임
+                postReportsStr = string.Join(", ", items);
+            }
+            else
+            {
+                postReportsStr = "{}";
+            }
+
             return
 
               $" orderId = {orderId,-5}" +
@@ -60,8 +93,9 @@ namespace Common.DTOs.Rests.Missions
               $",state = {state,-5}" +
               $",specifiedWorkerId = {specifiedWorkerId,-5}" +
               $",assignedWorkerId = {assignedWorkerId,-5}" +
-
-                $",parameters = {parametersStr,-5}";
+                 $",parameters = {parametersStr,-5}" +
+                $",preReports = {preReportsStr,-5}" +
+                $",postReports = {postReportsStr,-5}";
         }
     }
 }

@@ -7,7 +7,6 @@ namespace Common.DTOs.MQTTs.Missions
     {
         //Traffic 필요항목
         [JsonPropertyOrder(1)] public string guid { get; set; }
-
         [JsonPropertyOrder(2)] public string trafficWorker { get; set; }
         [JsonPropertyOrder(3)] public DateTime createdAt { get; set; }                  // 생성 시각
         [JsonPropertyOrder(4)] public DateTime? updatedAt { get; set; }
@@ -15,7 +14,6 @@ namespace Common.DTOs.MQTTs.Missions
 
         //ACS Mission 기본정보
         [JsonPropertyOrder(1)] public string orderId { get; set; }
-
         [JsonPropertyOrder(2)] public string jobId { get; set; }
         [JsonPropertyOrder(3)] public string acsMissionId { get; set; }
         [JsonPropertyOrder(4)] public string carrierId { get; set; }              // 자재 ID (nullable)

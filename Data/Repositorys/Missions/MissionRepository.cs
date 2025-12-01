@@ -30,9 +30,15 @@ namespace Data.Repositorys.Jobs
                 BEGIN
                     CREATE TABLE dbo.[Mission]
                     (
+                        [guid]                     NVARCHAR(64)     NULL,
+                        [trafficWorker]            NVARCHAR(64)     NULL,
+                        [state]                    NVARCHAR(64)     NULL,
+                        [createdAt]                datetime        NULL,
+                        [updatedAt]                datetime        NULL,
+                        [finishedAt]               datetime        NULL,
                         [orderId]                  NVARCHAR(64)     NULL,
                         [jobId]                    NVARCHAR(64)     NULL,
-                        [guid]                     NVARCHAR(64)     NULL,
+                        [acsMissionId]             NVARCHAR(64)     NULL,
                         [carrierId]                NVARCHAR(64)     NULL,
                         [name]                     NVARCHAR(64)     NULL,
                         [service]                  NVARCHAR(64)     NULL,
@@ -43,13 +49,8 @@ namespace Data.Repositorys.Jobs
                         [isLocked]                 int             NULL,
                         [sequenceChangeCount]      int             NULL,
                         [retryCount]               int             NULL,
-                        [state]                   NVARCHAR(64)     NULL,
                         [specifiedWorkerId]        NVARCHAR(64)     NULL,
                         [assignedWorkerId]         NVARCHAR(64)     NULL,
-                        [createdAt]                datetime        NULL,
-                        [updatedAt]                datetime        NULL,
-                        [finishedAt]               datetime        NULL,
-                        [sequenceUpdatedAt]        datetime        NULL,
                         [parametersJson]            NVARCHAR(2000)    NULL,
                         [preReportsJson]            NVARCHAR(2000)    NULL,
                         [postReportsJson]           NVARCHAR(2000)    NULL,
@@ -94,9 +95,15 @@ namespace Data.Repositorys.Jobs
                     const string INSERT_SQL = @"
                             INSERT INTO [Mission]
                                  (
-                                       [orderId]
+                                       [guid]
+                                      ,[trafficWorker]
+                                      ,[state]
+                                      ,[createdAt]
+                                      ,[updatedAt]
+                                      ,[finishedAt]
+                                      ,[orderId]
                                       ,[jobId]
-                                      ,[guid]
+                                      ,[acsMissionId]
                                       ,[carrierId]
                                       ,[name]
                                       ,[service]
@@ -107,22 +114,24 @@ namespace Data.Repositorys.Jobs
                                       ,[isLocked]
                                       ,[sequenceChangeCount]
                                       ,[retryCount]
-                                      ,[state]
                                       ,[specifiedWorkerId]
                                       ,[assignedWorkerId]
-                                      ,[createdAt]
-                                      ,[updatedAt]
-                                      ,[finishedAt]
-                                      ,[sequenceUpdatedAt]
                                       ,[parametersJson]
                                       ,[preReportsJson]
                                       ,[postReportsJson]
                                    )
                                   values
                                   (
-                                     	 @orderId
+
+                                         @guid
+                                        ,@trafficWorker
+                                        ,@state
+                                        ,@createdAt
+                                        ,@updatedAt
+                                        ,@finishedAt
+                                     	,@orderId
                                         ,@jobId
-                                        ,@guid
+                                        ,@acsMissionId
                                         ,@carrierId
                                         ,@name
                                         ,@service
@@ -133,13 +142,8 @@ namespace Data.Repositorys.Jobs
                                         ,@isLocked
                                         ,@sequenceChangeCount
                                         ,@retryCount
-                                        ,@state
                                         ,@specifiedWorkerId
                                         ,@assignedWorkerId
-                                        ,@createdAt
-                                        ,@updatedAt
-                                        ,@finishedAt
-                                        ,@sequenceUpdatedAt
                                         ,@parametersJson
                                         ,@preReportsJson
                                         ,@postReportsJson
@@ -162,8 +166,15 @@ namespace Data.Repositorys.Jobs
                     const string UPDATE_SQL = @"
                             UPDATE [Mission]
                             SET
-                                [orderId]                  =  @orderId
+
+                               ,[trafficWorker]             = @trafficWorker
+                               ,[state]                     = @state
+                               ,[createdAt]                 = @createdAt
+                               ,[updatedAt]                 = @updatedAt
+                               ,[finishedAt]                = @finishedAt
+                               ,[orderId]                  =  @orderId
                                ,[jobId]                    =  @jobId
+                               ,[acsMissionId]             = @acsMissionId
                                ,[carrierId]                =  @carrierId
                                ,[name]                     =  @name
                                ,[service]                  =  @service
@@ -174,13 +185,8 @@ namespace Data.Repositorys.Jobs
                                ,[isLocked]                 =  @isLocked
                                ,[sequenceChangeCount]      =  @sequenceChangeCount
                                ,[retryCount]               =  @retryCount
-                               ,[state]                    =  @state
                                ,[specifiedWorkerId]        =  @specifiedWorkerId
                                ,[assignedWorkerId]         =  @assignedWorkerId
-                               ,[createdAt]                =  @createdAt
-                               ,[updatedAt]                =  @updatedAt
-                               ,[finishedAt]               =  @finishedAt
-                               ,[sequenceUpdatedAt]        =  @sequenceUpdatedAt
                                ,[parametersJson]           =  @parametersJson
                                ,[preReportsJson]           =  @preReportsJson
                                ,[postReportsJson]          =  @postReportsJson
@@ -256,11 +262,11 @@ namespace Data.Repositorys.Jobs
             }
         }
 
-        public Mission GetById(string id)
+        public Mission GetByACSMissionId(string acsMissionId)
         {
             lock (_lock)
             {
-                return _missions.FirstOrDefault(m => m.guid == id);
+                return _missions.FirstOrDefault(m => m.acsMissionId == acsMissionId);
             }
         }
 

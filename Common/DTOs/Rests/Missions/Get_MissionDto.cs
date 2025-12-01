@@ -5,8 +5,6 @@ namespace Common.DTOs.Rests.Missions
 {
     public class Get_MissionDto
     {
-
-
         //Traffic 필요항목
         [JsonPropertyOrder(1)] public string guid { get; set; }
         [JsonPropertyOrder(2)] public string trafficWorker { get; set; }
