@@ -31,7 +31,6 @@ namespace Data.Repositorys.Jobs
                     CREATE TABLE dbo.[Mission]
                     (
                         [guid]                     NVARCHAR(64)     NULL,
-                        [trafficWorker]            NVARCHAR(64)     NULL,
                         [state]                    NVARCHAR(64)     NULL,
                         [createdAt]                datetime        NULL,
                         [updatedAt]                datetime        NULL,
@@ -96,7 +95,6 @@ namespace Data.Repositorys.Jobs
                             INSERT INTO [Mission]
                                  (
                                        [guid]
-                                      ,[trafficWorker]
                                       ,[state]
                                       ,[createdAt]
                                       ,[updatedAt]
@@ -124,7 +122,6 @@ namespace Data.Repositorys.Jobs
                                   (
 
                                          @guid
-                                        ,@trafficWorker
                                         ,@state
                                         ,@createdAt
                                         ,@updatedAt
@@ -167,7 +164,6 @@ namespace Data.Repositorys.Jobs
                             UPDATE [Mission]
                             SET
 
-                               ,[trafficWorker]             = @trafficWorker
                                ,[state]                     = @state
                                ,[createdAt]                 = @createdAt
                                ,[updatedAt]                 = @updatedAt
@@ -289,5 +285,28 @@ namespace Data.Repositorys.Jobs
                 return missions.Where(m => m.parameters != null).SelectMany(m => m.parameters).ToList();
             }
         }
+    
+        public Parameter FindParameterByKey(List<Parameter> parameters, string key)
+        {
+            if (parameters == null)
+                return null;
+
+            if (string.IsNullOrWhiteSpace(key))
+                return null;
+
+            string targetKey = key.ToUpper();
+
+            foreach (var p in parameters)
+            {
+                if (p.key == null)
+                    continue;
+
+                if (p.key.ToUpper() == targetKey)
+                    return p;
+            }
+
+            return null;
+        }
+
     }
 }

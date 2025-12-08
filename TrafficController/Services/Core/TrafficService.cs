@@ -57,23 +57,21 @@ namespace TrafficController.Services
             // - 이전 실행 기록이 남아있지 않도록 매번 새 리스트로 준비.
             _tasks = new List<Task>
              {
-                Task.Run(() => Monitor()),
-                Task.Run(() => TrafficScheduler()),
+                Task.Run(() => Traffic()),
             };
         }
 
-        private async Task Monitor()
+        public async Task Traffic()
         {
             try
             {
-                EventLogger.Info("[Monitor Task] Start");  // 루프 시작 로그
+                EventLogger.Info("[Traffic Task] Start");  // 루프 시작 로그
 
                 while (_running)
                 {
                     try
                     {
-                        StatusChangeControl();
-                        PositionControl();
+                        TrafficControl();
                         await Task.Delay(300);
                     }
                     catch (Exception ex)
@@ -84,31 +82,7 @@ namespace TrafficController.Services
             }
             finally
             {
-                EventLogger.Info("[Monitor Task] Stop");  // 루프 종료 로그
-            }
-        }
-
-        public async Task TrafficScheduler()
-        {
-            try
-            {
-                EventLogger.Info("[TrafficScheduler Task] Start");  // 루프 시작 로그
-
-                while (_running)
-                {
-                    try
-                    {
-                        await Task.Delay(300);
-                    }
-                    catch (Exception ex)
-                    {
-                        main.LogExceptionMessage(ex);
-                    }
-                }
-            }
-            finally
-            {
-                EventLogger.Info("[TrafficScheduler Task] Stop");  // 루프 정지 로그
+                EventLogger.Info("[Traffic Task] Stop");  // 루프 정지 로그
             }
         }
 
@@ -159,6 +133,7 @@ namespace TrafficController.Services
                     case nameof(MissionState.ABORTFAILED):
                     case nameof(MissionState.CANCELINITED):
                     case nameof(MissionState.CNACELFAILED):
+                    case nameof(MissionState.COMPLETED):
                         mission.updatedAt = DateTime.Now;
                         break;
 
@@ -166,14 +141,13 @@ namespace TrafficController.Services
                     case nameof(MissionState.ABORTCOMPLETED):
                     case nameof(MissionState.CANCELINITCOMPLETED):
                     case nameof(MissionState.CANCELED):
-                    case nameof(MissionState.COMPLETED):
                         mission.finishedAt = DateTime.Now;
                         break;
                 }
 
                 _repository.Missions.Update(mission);
                 //if (historyAdd) _repository.MissionHistorys.Add(mission);
-                _mqttQueue.MqttPublishMessage(TopicType.mission, TopicSubType.status, _mapping.Missions.MqttPublish(mission));
+                _mqttQueue.MqttPublishMessage(TopicType.mission, TopicSubType.status, _mapping.Missions.Publish(mission));
             }
         }
 

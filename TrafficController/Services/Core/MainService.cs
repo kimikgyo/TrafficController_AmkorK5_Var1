@@ -18,7 +18,7 @@ namespace TrafficController.Services
         public readonly IMqttWorker _mqtt;
 
         private MainService main = null;
-        private GetDataService getData = null;
+        private Response_Data_Service getData = null;
         private MQTTService mQTT = null;
         private TrafficService schedulerService = null;
 
@@ -37,7 +37,7 @@ namespace TrafficController.Services
         {
             schedulerService = new TrafficService(main, _repository, _mapping, _mqttQueue);
             mQTT = new MQTTService(_mqtt, _mqttQueue);
-            getData = new GetDataService(EventLogger, _repository, _mapping);
+            getData = new Response_Data_Service(EventLogger, _repository, _mapping);
         }
 
         private async Task stratAsync()

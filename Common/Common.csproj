@@ -13,4 +13,9 @@
     <PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="9.0.6" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="DTOs\Rests\Areas\" />
+    <Folder Include="Models\Areas\" />
+  </ItemGroup>
+
 </Project>

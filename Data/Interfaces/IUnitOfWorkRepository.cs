@@ -1,4 +1,5 @@
-﻿using Data.Repositorys.Jobs;
+﻿using Data.Repositorys.Areas;
+using Data.Repositorys.Jobs;
 using Data.Repositorys.Maps;
 using Data.Repositorys.Positions;
 using Data.Repositorys.Services;
@@ -17,7 +18,7 @@ namespace Data.Interfaces
         #endregion Base
 
         MissionRepository Missions { get; }
-
+        ACS_AreaRepository ACSAreas { get; }
         ServiceApiRepository ServiceApis { get; }
 
         void SaveChanges();

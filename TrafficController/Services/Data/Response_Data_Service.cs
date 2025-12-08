@@ -1,7 +1,9 @@
-﻿using Common.DTOs.Rests.Maps;
+﻿using Common.DTOs.Rests.Areas;
+using Common.DTOs.Rests.Maps;
 using Common.DTOs.Rests.Positions;
 using Common.DTOs.Rests.Workers;
 using Common.Models;
+using Common.Models.Areas;
 using Common.Models.Bases;
 using Data.Interfaces;
 using Data.Repositorys.Bases;
@@ -9,11 +11,12 @@ using log4net;
 using RestApi.Interfases;
 using System.Data;
 using System.Diagnostics;
+using System.Linq;
 using TrafficController.Mappings.Interfaces;
 
 namespace TrafficController.Services
 {
-    public class GetDataService
+    public class Response_Data_Service
     {
         private static readonly ILog ApiLogger = LogManager.GetLogger("ApiEvent");
 
@@ -22,7 +25,7 @@ namespace TrafficController.Services
         public readonly ILog _eventlog;
         public List<MqttTopicSubscribe> mqttTopicSubscribes = new List<MqttTopicSubscribe>();
 
-        public GetDataService(ILog eventLog, IUnitOfWorkRepository repository, IUnitOfWorkMapping mapping)
+        public Response_Data_Service(ILog eventLog, IUnitOfWorkRepository repository, IUnitOfWorkMapping mapping)
         {
             _repository = repository;
             _mapping = mapping;
@@ -48,9 +51,11 @@ namespace TrafficController.Services
                             _repository.Workers.Delete();
                             _repository.Maps.Delete();
                             _repository.Positions.Delete();
-                            var Workers = await serviceApi.Api.GetResourceWorker();
-                            var Maps = await serviceApi.Api.GetResourceMap();
-                            var Positions = await serviceApi.Api.GetResourcePosition();
+                            _repository.ACSAreas.Delete();
+                            var Workers = await serviceApi.Api.Get_Worker_Async();
+                            var Maps = await serviceApi.Api.Get_Map_Async();
+                            var Positions = await serviceApi.Api.Get_Position_Async();
+                            var AcsAreas = await serviceApi.Api.Get_ACS_Area_Async();
 
                             if (Workers == null)
                             {
@@ -65,6 +70,11 @@ namespace TrafficController.Services
                             else if (Positions == null)
                             {
                                 _eventlog.Info($"{nameof(Positions)}GetDataFail");
+                                break;
+                            }
+                            else if (AcsAreas == null)
+                            {
+                                _eventlog.Info($"{nameof(AcsAreas)}GetDataFail");
                                 break;
                             }
                             else
@@ -86,7 +96,11 @@ namespace TrafficController.Services
                                     var position = _mapping.Positions.ApiGetResourceResponse(getPosition);
                                     _repository.Positions.Add(position);
                                 }
-
+                                foreach (var getAcsArea in AcsAreas)
+                                {
+                                    var acsArea = _mapping.ACSAreas.Response(getAcsArea);
+                                    _repository.ACSAreas.Add(acsArea);
+                                }
                                 Resource = true;
                             }
                         }
@@ -155,15 +169,14 @@ namespace TrafficController.Services
             {
                 try
                 {
-                    ApiClient();
                     foreach (var serviceApi in _repository.ServiceApis.GetAll())
                     {
                         if (serviceApi.type == "Resource")
                         {
-                            var getReloadWorkers = await serviceApi.Api.GetResourceWorker();
-                            var getReloadMaps = await serviceApi.Api.GetResourceMap();
-                            var getReloadPositions = await serviceApi.Api.GetResourcePosition();
-                            //var getReloadCarrier = await serviceApi.Api.GetResourceCarrier();
+                            var getReloadWorkers = await serviceApi.Api.Get_Worker_Async();
+                            var getReloadMaps = await serviceApi.Api.Get_Map_Async();
+                            var getReloadPositions = await serviceApi.Api.Get_Position_Async();
+                            var getAcsAreas = await serviceApi.Api.Get_ACS_Area_Async();
                             if (getReloadWorkers == null)
                             {
                                 _eventlog.Info($"{nameof(getReloadWorkers)}GetDataFail");
@@ -179,17 +192,17 @@ namespace TrafficController.Services
                                 _eventlog.Info($"{nameof(getReloadPositions)}GetDataFail");
                                 break;
                             }
-                            //else if (getReloadCarrier == null)
-                            //{
-                            //    _eventlog.Info($"{nameof(getReloadCarrier)}GetDataFail");
-                            //    break;
-                            //}
+                            else if (getAcsAreas == null)
+                            {
+                                _eventlog.Info($"{nameof(getAcsAreas)}GetDataFail");
+                                break;
+                            }
                             else
                             {
                                 ReloadMap(getReloadMaps);
                                 ReloadWorker(getReloadWorkers);
                                 ReloadPosition(getReloadPositions);
-                                //ReloadCarrier(getReloadCarrier);
+                                ReloadACSArea(getAcsAreas);
                                 Resource = true;
                             }
                         }
@@ -210,6 +223,59 @@ namespace TrafficController.Services
             }
 
             return Complete;
+        }
+
+        private void ReloadACSArea(List<Response_ACS_AareDto> response_ACS_AareDtos)
+        {
+            List<ACSArea> Reload = new List<ACSArea>();
+
+            //update Add
+            foreach (var response_ACS_AareDto in response_ACS_AareDtos)
+            {
+                Reload.Add(_mapping.ACSAreas.Response(response_ACS_AareDto));
+            }
+
+            var ReloadId = Reload.Select(x => x.areaId);
+            var aCSAreas = _repository.ACSAreas.GetAll();
+            var aCSAreaIds = aCSAreas.Select(x => x.areaId);
+
+            //새로운 데이터 기준 으로 기존데이터가 없는것
+            var AddACSAreas = Reload.Where(x => !aCSAreaIds.Contains(x.areaId)).ToList();
+            foreach (var AddACSArea in AddACSAreas)
+            {
+                _repository.ACSAreas.Add(AddACSArea);
+            }
+
+            //기존데이터 기준 새로운 데이터와 같은것 업데이트
+            foreach (var aCSArea in aCSAreas)
+            {
+                var Update = Reload.FirstOrDefault(x => x.areaId == aCSArea.areaId);
+                if (Update != null)
+                {
+                    aCSArea.areaId = Update.areaId;
+                    aCSArea.mapId = Update.mapId;
+                    aCSArea.name = Update.name;
+                    aCSArea.type = Update.type;
+                    aCSArea.subType = Update.subType;
+                    aCSArea.groupId = Update.groupId;
+                    aCSArea.linkedNode = Update.linkedNode;
+                    aCSArea.linkedFacility = Update.linkedFacility;
+                    aCSArea.x = Update.x;
+                    aCSArea.y = Update.y;
+                    aCSArea.theta = Update.theta;
+                    aCSArea.width = Update.width;
+                    aCSArea.height = Update.height;
+                    aCSArea.isDisplayed = Update.isDisplayed;
+                    aCSArea.isEnabled = Update.isEnabled;
+                }
+            }
+
+            //기존데이터 기준 에서 새로운데이터가 없는것
+            var removes = aCSAreas.Where(x => !ReloadId.Contains(x.areaId)).ToList();
+            foreach (var remove in removes)
+            {
+                _repository.ACSAreas.Remove(remove);
+            }
         }
 
         private void ReloadMap(List<Response_MapDto> dtoResourceMaps)

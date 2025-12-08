@@ -7,7 +7,6 @@ namespace Common.DTOs.Rests.Missions
     {
         //Traffic 필요항목
         [JsonPropertyOrder(1)] public string guid { get; set; }
-        [JsonPropertyOrder(2)] public string trafficWorker { get; set; }
         [JsonPropertyOrder(3)] public DateTime createdAt { get; set; }                  // 생성 시각
         [JsonPropertyOrder(4)] public DateTime? updatedAt { get; set; }
         [JsonPropertyOrder(5)] public DateTime? finishedAt { get; set; }
@@ -37,7 +36,6 @@ namespace Common.DTOs.Rests.Missions
             return
 
                 $",guid = {guid,-5}" +
-                $",trafficWorker = {trafficWorker,-5}" +
                 $",createdAt = {createdAt,-5}" +
                 $",updatedAt = {updatedAt,-5}" +
                 $",finishedAt = {finishedAt,-5}" +

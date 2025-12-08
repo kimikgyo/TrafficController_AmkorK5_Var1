@@ -18,13 +18,14 @@ namespace Common.DTOs.Rests.Positions
         [JsonPropertyOrder(12)] public bool isDisplayed { get; set; }
         [JsonPropertyOrder(13)] public bool isEnabled { get; set; }
         [JsonPropertyOrder(14)] public bool isOccupied { get; set; }
-        [JsonPropertyOrder(15)] public string linkedFacility { get; set; }
-        [JsonPropertyOrder(16)] public string linkedRobotId { get; set; }
-        [JsonPropertyOrder(17)] public bool hasCharger { get; set; }
-        [JsonPropertyOrder(18)] public DateTime createdAt { get; set; }
-        [JsonPropertyOrder(19)] public DateTime updatedAt { get; set; }
-        [JsonPropertyOrder(20)] public string createdBy { get; set; }
-        [JsonPropertyOrder(21)] public string updatedBy { get; set; }
+        [JsonPropertyOrder(15)] public string linkedArea { get; set; }
+        [JsonPropertyOrder(16)] public string linkedFacility { get; set; }
+        [JsonPropertyOrder(17)] public string linkedRobotId { get; set; }
+        [JsonPropertyOrder(18)] public bool hasCharger { get; set; }
+        [JsonPropertyOrder(19)] public DateTime createdAt { get; set; }
+        [JsonPropertyOrder(20)] public DateTime updatedAt { get; set; }
+        [JsonPropertyOrder(21)] public string createdBy { get; set; }
+        [JsonPropertyOrder(22)] public string updatedBy { get; set; }
 
         public override string ToString()
         {
@@ -44,6 +45,7 @@ namespace Common.DTOs.Rests.Positions
                 $",isDisplayed = {isDisplayed,-5}" +
                 $",isEnabled = {isEnabled,-5}" +
                 $",isOccupied = {isOccupied,-5}" +
+                $",linkedArea = {linkedArea,-5}" +
                 $",linkedFacility = {linkedFacility,-5}" +
                 $",linkedRobotId = {linkedRobotId,-5}" +
                 $",hasCharger = {hasCharger,-5}" +

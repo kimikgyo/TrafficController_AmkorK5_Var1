@@ -1,4 +1,5 @@
-﻿using JTrafficControllerOB.Mappings.Bases;
+﻿using JOB.Mappings.Areas;
+using JTrafficControllerOB.Mappings.Bases;
 using TrafficController.Mappings.Bases;
 using TrafficController.Mappings.Missions;
 
@@ -10,5 +11,6 @@ namespace TrafficController.Mappings.Interfaces
         WorkerMapping Workers { get; }
         PositionMapping Positions { get; }
         MapMapping Maps { get; }
+        ACSAreaMapping ACSAreas { get; }
     }
 }

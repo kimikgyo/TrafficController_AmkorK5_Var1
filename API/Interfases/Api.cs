@@ -1,4 +1,5 @@
-﻿using Common.DTOs.Rests.Maps;
+﻿using Common.DTOs.Rests.Areas;
+using Common.DTOs.Rests.Maps;
 using Common.DTOs.Rests.Positions;
 using Common.DTOs.Rests.Workers;
 using Common.Interfaces;
@@ -33,7 +34,20 @@ namespace RestApi.Interfases
             return httpClient;
         }
 
-        public async Task<List<Response_WorkerDto>> GetResourceWorker()
+        public async Task<List<Response_ACS_AareDto>> Get_ACS_Area_Async()
+        {
+            try
+            {
+                return await _httpClient.GetFromJsonAsync<List<Response_ACS_AareDto>>("api/acs-areas");
+            }
+            //catch (Exception ex) when (True(() => _logger.Error(ex)))
+            catch (Exception ex) when (True(() => ApiLogger.Error($"IPAddress = {_httpClient.BaseAddress}" + "\r\n" + ex)))
+            {
+                return null;
+            }
+        }
+
+        public async Task<List<Response_WorkerDto>> Get_Worker_Async()
         {
             try
             {
@@ -46,7 +60,7 @@ namespace RestApi.Interfases
             }
         }
 
-        public async Task<List<Response_MapDto>> GetResourceMap()
+        public async Task<List<Response_MapDto>> Get_Map_Async()
         {
             try
             {
@@ -59,7 +73,7 @@ namespace RestApi.Interfases
             }
         }
 
-        public async Task<List<Response_PositionDto>> GetResourcePosition()
+        public async Task<List<Response_PositionDto>> Get_Position_Async()
         {
             try
             {
@@ -72,9 +86,9 @@ namespace RestApi.Interfases
             }
         }
 
-        public async Task<ApiResponseDto> ElevatorPostMissionQueueAsync(object value)
+        public async Task<ApiResponseDto> Post_Elevator_Mission_Async(object value)
         {
-            if (!AcceptFilterUtility.WriteAccepted) { ApiLogger.Error($"IPAddress = {_httpClient.BaseAddress}" + "\r\n" + $"-- API NOT ALLOWED. [{nameof(ElevatorPostMissionQueueAsync)}] --"); return null; }
+            if (!AcceptFilterUtility.WriteAccepted) { ApiLogger.Error($"IPAddress = {_httpClient.BaseAddress}" + "\r\n" + $"-- API NOT ALLOWED. [{nameof(Post_Elevator_Mission_Async)}] --"); return null; }
 
             try
             {
@@ -102,9 +116,9 @@ namespace RestApi.Interfases
             }
         }
 
-        public async Task<ApiResponseDto> ElevatorDeletetMissionQueueAsync(string id)
+        public async Task<ApiResponseDto> Deletet_Elevator_Mission_Async(string id)
         {
-            if (!AcceptFilterUtility.WriteAccepted) { ApiLogger.Error($"IPAddress = {_httpClient.BaseAddress}" + "\r\n" + $"-- API NOT ALLOWED. [{nameof(ElevatorPostMissionQueueAsync)}] --"); return null; }
+            if (!AcceptFilterUtility.WriteAccepted) { ApiLogger.Error($"IPAddress = {_httpClient.BaseAddress}" + "\r\n" + $"-- API NOT ALLOWED. [{nameof(Post_Elevator_Mission_Async)}] --"); return null; }
 
             try
             {
@@ -132,9 +146,9 @@ namespace RestApi.Interfases
             }
         }
 
-        public async Task<ApiResponseDto> WorkerPostMissionQueueAsync(object value)
+        public async Task<ApiResponseDto> Post_Worker_Mission_Async(object value)
         {
-            if (!AcceptFilterUtility.WriteAccepted) { ApiLogger.Error($"IPAddress = {_httpClient.BaseAddress}" + "\r\n" + $"-- API NOT ALLOWED. [{nameof(WorkerPostMissionQueueAsync)}] --"); return null; }
+            if (!AcceptFilterUtility.WriteAccepted) { ApiLogger.Error($"IPAddress = {_httpClient.BaseAddress}" + "\r\n" + $"-- API NOT ALLOWED. [{nameof(Post_Worker_Mission_Async)}] --"); return null; }
 
             try
             {
@@ -162,9 +176,9 @@ namespace RestApi.Interfases
             }
         }
 
-        public async Task<ApiResponseDto> MiddlewarePostMissionQueueAsync(object value)
+        public async Task<ApiResponseDto> Post_Middleware_Mission_Async(object value)
         {
-            if (!AcceptFilterUtility.WriteAccepted) { ApiLogger.Error($"IPAddress = {_httpClient.BaseAddress}" + "\r\n" + $"-- API NOT ALLOWED. [{nameof(MiddlewarePostMissionQueueAsync)}] --"); return null; }
+            if (!AcceptFilterUtility.WriteAccepted) { ApiLogger.Error($"IPAddress = {_httpClient.BaseAddress}" + "\r\n" + $"-- API NOT ALLOWED. [{nameof(Post_Middleware_Mission_Async)}] --"); return null; }
 
             try
             {
@@ -192,9 +206,9 @@ namespace RestApi.Interfases
             }
         }
 
-        public async Task<ApiResponseDto> WorkerDeleteMissionQueueAsync(string id)
+        public async Task<ApiResponseDto> Delete_Worker_Mission_Async(string id)
         {
-            if (!AcceptFilterUtility.WriteAccepted) { ApiLogger.Error($"IPAddress = {_httpClient.BaseAddress}" + "\r\n" + $"-- API NOT ALLOWED. [{nameof(WorkerDeleteMissionQueueAsync)}] --"); return null; }
+            if (!AcceptFilterUtility.WriteAccepted) { ApiLogger.Error($"IPAddress = {_httpClient.BaseAddress}" + "\r\n" + $"-- API NOT ALLOWED. [{nameof(Delete_Worker_Mission_Async)}] --"); return null; }
 
             try
             {
@@ -222,9 +236,9 @@ namespace RestApi.Interfases
             }
         }
 
-        public async Task<ApiResponseDto> MiddlewareDeleteMissionQueueAsync(string id)
+        public async Task<ApiResponseDto> Delete_Middleware_Mission_Async(string id)
         {
-            if (!AcceptFilterUtility.WriteAccepted) { ApiLogger.Error($"IPAddress = {_httpClient.BaseAddress}" + "\r\n" + $"-- API NOT ALLOWED. [{nameof(MiddlewareDeleteMissionQueueAsync)}] --"); return null; }
+            if (!AcceptFilterUtility.WriteAccepted) { ApiLogger.Error($"IPAddress = {_httpClient.BaseAddress}" + "\r\n" + $"-- API NOT ALLOWED. [{nameof(Delete_Middleware_Mission_Async)}] --"); return null; }
 
             try
             {
@@ -252,9 +266,9 @@ namespace RestApi.Interfases
             }
         }
 
-        public async Task<ApiResponseDto> PositionPatchAsync(string Id, object value)
+        public async Task<ApiResponseDto> Patch_Position_Async(string Id, object value)
         {
-            if (!AcceptFilterUtility.WriteAccepted) { ApiLogger.Error($"IPAddress = {_httpClient.BaseAddress}" + "\r\n" + $"-- API NOT ALLOWED. [{nameof(MiddlewarePostMissionQueueAsync)}] --"); return null; }
+            if (!AcceptFilterUtility.WriteAccepted) { ApiLogger.Error($"IPAddress = {_httpClient.BaseAddress}" + "\r\n" + $"-- API NOT ALLOWED. [{nameof(Post_Middleware_Mission_Async)}] --"); return null; }
 
             try
             {

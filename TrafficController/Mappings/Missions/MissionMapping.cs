@@ -11,7 +11,6 @@ namespace TrafficController.Mappings.Missions
             var response = new Get_MissionDto()
             {
                 guid = model.guid,
-                trafficWorker = model.trafficWorker,
                 createdAt = model.createdAt,
                 updatedAt = model.updatedAt,
                 finishedAt = model.finishedAt,
@@ -46,7 +45,6 @@ namespace TrafficController.Mappings.Missions
             var publish = new Publish_MissionDto()
             {
                 guid = model.guid,
-                trafficWorker = model.trafficWorker,
                 createdAt = model.createdAt,
                 updatedAt = model.updatedAt,
                 finishedAt = model.finishedAt,
