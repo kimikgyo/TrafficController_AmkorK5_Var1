@@ -2,7 +2,7 @@ using Data.Interfaces;
 using Data.Repositorys.Bases;
 using log4net;
 using log4net.Config;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
@@ -55,7 +55,7 @@ try
     //Kestrel 설정을 appsettings.json에서 읽어오도록 설정
     builder.WebHost.ConfigureKestrel(options =>
     {
-        options.ListenAnyIP(7045); // 압도적으로 가장 편한 방법 ★
+        options.ListenAnyIP(7000); // 압도적으로 가장 편한 방법 ★
     });
 
     #region 의존성 주입 [DI설명 및 설정]
@@ -147,6 +147,7 @@ try
     //if (app.Environment.IsDevelopment())
     //{
     app.UseSwagger();
+    //app.UseSwagger(options => options.OpenApiVersion = Microsoft.OpenApi.OpenApiSpecVersion.OpenApi2_0);
     //app.UseSwaggerUI();
     app.UseSwaggerUI(c =>
     {
