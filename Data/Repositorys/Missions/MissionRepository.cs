@@ -164,7 +164,7 @@ namespace Data.Repositorys.Jobs
                             UPDATE [Mission]
                             SET
 
-                               ,[state]                     = @state
+                                [state]                     = @state
                                ,[createdAt]                 = @createdAt
                                ,[updatedAt]                 = @updatedAt
                                ,[finishedAt]                = @finishedAt

@@ -89,12 +89,14 @@ namespace Common.Models.Missions
     {
         //Traffic 필요항목
         [JsonPropertyOrder(1)] public string guid { get; set; }
+
         [JsonPropertyOrder(3)] public DateTime createdAt { get; set; }                  // 생성 시각
         [JsonPropertyOrder(4)] public DateTime? updatedAt { get; set; }
         [JsonPropertyOrder(5)] public DateTime? finishedAt { get; set; }
 
         //ACS Post 항목
         [JsonPropertyOrder(6)] public string orderId { get; set; }
+
         [JsonPropertyOrder(7)] public string jobId { get; set; }
         [JsonPropertyOrder(8)] public string acsMissionId { get; set; }
         [JsonPropertyOrder(9)] public string carrierId { get; set; }              // 자재 ID (nullable)

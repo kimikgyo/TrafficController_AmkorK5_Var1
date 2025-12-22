@@ -1,5 +1,6 @@
 ﻿using Common.DTOs.Rests.Missions;
 using Common.Models;
+using Common.Models.Missions;
 using Data.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using TrafficController.Mappings.Interfaces;
@@ -52,7 +53,6 @@ namespace TrafficController.Controllers
             }
             else
                 return NotFound();
-
         }
 
         //// PUT api/<ValuesController>/5
@@ -68,11 +68,50 @@ namespace TrafficController.Controllers
             var mission = _repository.Missions.GetByACSMissionId(acsMissionId);
             if (mission != null)
             {
+                updateStateMission(mission, nameof(MissionState.CANCELED), true);
                 _repository.Missions.Remove(mission);
                 return Ok(mission);
             }
             else
                 return NotFound();
+        }
+
+        private void updateStateMission(Mission mission, string state, bool historyAdd = false)
+        {
+            if (mission.state != state)
+            {
+                mission.state = state;
+
+                switch (mission.state)
+                {
+                    case nameof(MissionState.INIT):
+                    case nameof(MissionState.WORKERASSIGNED):
+                    case nameof(MissionState.WAITING):
+                    case nameof(MissionState.COMMANDREQUEST):
+                    case nameof(MissionState.COMMANDREQUESTCOMPLETED):
+                    case nameof(MissionState.PENDING):
+                    case nameof(MissionState.EXECUTING):
+                    case nameof(MissionState.FAILED):
+                    case nameof(MissionState.ABORTINITED):
+                    case nameof(MissionState.ABORTFAILED):
+                    case nameof(MissionState.CANCELINITED):
+                    case nameof(MissionState.CNACELFAILED):
+                    case nameof(MissionState.COMPLETED):
+                        mission.updatedAt = DateTime.Now;
+                        break;
+
+                    case nameof(MissionState.SKIPPED):
+                    case nameof(MissionState.ABORTCOMPLETED):
+                    case nameof(MissionState.CANCELINITCOMPLETED):
+                    case nameof(MissionState.CANCELED):
+                        mission.finishedAt = DateTime.Now;
+                        break;
+                }
+
+                _repository.Missions.Update(mission);
+                //if (historyAdd) _repository.MissionHistorys.Add(mission);
+                _mqttQueue.MqttPublishMessage(TopicType.mission, TopicSubType.status, _mapping.Missions.Publish(mission));
+            }
         }
     }
 }

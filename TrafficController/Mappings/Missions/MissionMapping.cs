@@ -1,6 +1,8 @@
 ﻿using Common.DTOs.MQTTs.Missions;
 using Common.DTOs.Rests.Missions;
 using Common.Models.Missions;
+using System.Reflection;
+using System.Text.Json;
 
 namespace TrafficController.Mappings.Missions
 {
@@ -48,7 +50,7 @@ namespace TrafficController.Mappings.Missions
                 createdAt = model.createdAt,
                 updatedAt = model.updatedAt,
                 finishedAt = model.finishedAt,
-
+                    
                 orderId = model.orderId,
                 jobId = model.jobId,
                 acsMissionId = model.acsMissionId,
@@ -67,7 +69,7 @@ namespace TrafficController.Mappings.Missions
                 assignedWorkerId = model.assignedWorkerId,
                 parameters = model.parameters,
                 preReports = model.preReports,
-                postReports = model.postReports
+                postReports = model.postReports,
             };
             return publish;
         }
@@ -96,6 +98,11 @@ namespace TrafficController.Mappings.Missions
                 specifiedWorkerId = post_Mission.specifiedWorkerId,
                 assignedWorkerId = post_Mission.assignedWorkerId,
                 parameters = post_Mission.parameters,
+                preReports = post_Mission.preReports,
+                postReports = post_Mission.postReports,
+                parametersJson = JsonSerializer.Serialize(post_Mission.parameters),
+                preReportsJson = JsonSerializer.Serialize(post_Mission.preReports),
+                postReportsJson = JsonSerializer.Serialize(post_Mission.postReports),
             };
 
             return create;

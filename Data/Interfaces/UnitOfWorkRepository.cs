@@ -10,8 +10,9 @@ namespace Data.Interfaces
 {
     public class ConnectionStrings
     {
-        public static readonly string DB1 = @"Data SOURCE=.\SQLEXPRESS;Initial Catalog=AmkorK5_TrafficController; User ID = sa;TrustServerCertificate=true; Password=acsserver;Connect Timeout=30;";
+        //public static readonly string DB1 = @"Data SOURCE=.\SQLEXPRESS;Initial Catalog=AmkorK5_TrafficController; User ID = sa;TrustServerCertificate=true; Password=acsserver;Connect Timeout=30;";
         //public static readonly string DB1 = @"Data Source=192.168.8.215,1433; Initial Catalog=JobScheduler; User ID = sa; Password=acsserver; Connect Timeout=30; TrustServerCertificate=true"; // STI
+        public static readonly string DB1 = @"Data SOURCE=192.168.1.200,1433;Initial Catalog=AmkorK5_TrafficController; User ID = sa;TrustServerCertificate=true; Password=acsserver;Connect Timeout=30;";
     }
 
     public class UnitOfWorkRepository : IUnitOfWorkRepository

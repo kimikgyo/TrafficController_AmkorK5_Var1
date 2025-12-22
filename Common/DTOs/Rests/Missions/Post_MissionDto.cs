@@ -5,10 +5,10 @@ namespace Common.DTOs.Rests.Missions
 {
     public class Post_MissionDto
     {
-        [JsonPropertyOrder(1)] public string orderId { get; set; }
+        [JsonPropertyOrder(1)] public string? orderId { get; set; }
         [JsonPropertyOrder(2)] public string jobId { get; set; }
         [JsonPropertyOrder(3)] public string guid { get; set; }
-        [JsonPropertyOrder(4)] public string carrierId { get; set; }              // 자재 ID (nullable)
+        [JsonPropertyOrder(4)] public string? carrierId { get; set; }              // 자재 ID (nullable)
         [JsonPropertyOrder(5)] public string name { get; set; }              // 자재 ID (nullable)
         [JsonPropertyOrder(6)] public string service { get; set; }
         [JsonPropertyOrder(7)] public string type { get; set; }
@@ -22,8 +22,8 @@ namespace Common.DTOs.Rests.Missions
         [JsonPropertyOrder(15)] public string specifiedWorkerId { get; set; }
         [JsonPropertyOrder(16)] public string assignedWorkerId { get; set; }
         [JsonPropertyOrder(17)] public List<Parameter> parameters { get; set; }
-        [JsonPropertyOrder(18)] public List<PreReport> preReports { get; set; }
-        [JsonPropertyOrder(19)] public List<PostReport> postReports { get; set; }
+        [JsonPropertyOrder(18)] public List<PreReport>? preReports { get; set; }
+        [JsonPropertyOrder(19)] public List<PostReport>? postReports { get; set; }
 
         // 사람용 요약 (디버거/로그에서 보기 좋게)
         public override string ToString()

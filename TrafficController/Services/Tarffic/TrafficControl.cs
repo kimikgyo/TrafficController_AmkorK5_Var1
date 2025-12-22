@@ -1,4 +1,5 @@
 ﻿using Common.Models.Missions;
+using System.Reflection;
 
 namespace TrafficController.Services
 {
@@ -8,6 +9,7 @@ namespace TrafficController.Services
         {
             PendingToExecuting();                        // 1) PENDING → EXECUTING 승격
             completedToRemove();                        // 2) COMPLETE 중 Area 밖에 있는 것 삭제
+            SkipedToRemove();
             var groupByArea = GroupMissionsByArea();    // 3) Area 기준 그룹핑
             ExecutingToCompleted(groupByArea);          // 4) Area별 순서대로 EXECUTING을 COMPLETE로 승격
         }
@@ -51,15 +53,34 @@ namespace TrafficController.Services
                         EventLogger.Warn("[Traffic][PendingToExecuting] Mission instance is null. Skipping.");
                         continue;
                     }
+                    var linkedAreaParam = _repository.Missions.FindParameterByKey(mission.parameters, "LINKEDAREA");
 
-                    // 미션 상태 변경
-                    updateStateMission(mission, nameof(MissionState.EXECUTING), true);
+                    if (linkedAreaParam == null || string.IsNullOrWhiteSpace(linkedAreaParam.value))
+                    {
+                        // LINKEDAREA 가 없으면 트래픽 대상이 아니므로 스킵
+                        updateStateMission(mission, nameof(MissionState.SKIPPED), false);
+
+                        EventLogger.Info($"[Traffic][PendingToExecuting] LINKEDAREA not found or empty. Skip mission. guid={mission.guid}");
+                        continue;
+                    }
+                                           // 미션 상태 변경
+                        updateStateMission(mission, nameof(MissionState.EXECUTING), false);
                 }
             }
             catch (Exception ex)
             {
                 // 예외 발생 시 공통 예외 로거 호출
                 main.LogExceptionMessage(ex);
+            }
+        }
+
+        private void SkipedToRemove()
+        {
+            var skipedMissions = _repository.Missions.GetAll().Where(m => m != null && m.state == nameof(MissionState.SKIPPED)).ToList();
+            foreach (var skipedMission in skipedMissions)
+            {
+                _repository.Missions.Remove(skipedMission);
+                EventLogger.Info($"[Traffic][SkipedToRemove] Mission Remove missionId={skipedMission.guid}, missionName={skipedMission.name}");
             }
         }
 
@@ -72,7 +93,7 @@ namespace TrafficController.Services
             // ------------------------------------------------------------
             if (groupByArea == null || groupByArea.Count == 0)
             {
-                EventLogger.Info("[Traffic][ExecutingToCompleted] groupByArea is null or empty. Nothing to process.");
+                //EventLogger.Info("[Traffic][ExecutingToCompleted] groupByArea is null or empty. Nothing to process.");
                 return;
             }
 
@@ -251,7 +272,7 @@ namespace TrafficController.Services
                 // --------------------------------------------------------
                 // [3] 그룹핑 결과 로그
                 // --------------------------------------------------------
-                EventLogger.Info($"[Traffic][GroupMissionsByArea] Grouping completed. Area count={groupByArea.Count}");
+                //EventLogger.Info($"[Traffic][GroupMissionsByArea] Grouping completed. Area count={groupByArea.Count}");
 
                 return groupByArea;
             }
@@ -319,7 +340,7 @@ namespace TrafficController.Services
                     // [3-2] LINKEDAREA 파라미터 조회
                     // ----------------------------------------------------
                     var linkedAreaParam = _repository.Missions.FindParameterByKey(mission.parameters, "LINKEDAREA");
-                    if (linkedAreaParam == null || string.IsNullOrWhiteSpace(linkedAreaParam.value))
+                    if (mission.state != nameof(MissionState.SKIPPED) && (linkedAreaParam == null || string.IsNullOrWhiteSpace(linkedAreaParam.value)))
                     {
                         // Traffic 미션이 아니므로 스킵
                         EventLogger.Info($"[Traffic][CompletedToRemove] LINKEDAREA not found or empty. Skip mission. guid={mission.guid}");
