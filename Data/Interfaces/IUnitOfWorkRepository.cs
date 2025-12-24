@@ -18,7 +18,7 @@ namespace Data.Interfaces
         #endregion Base
 
         MissionRepository Missions { get; }
-        ACS_AreaRepository ACSAreas { get; }
+        ACS_ZoneRepository ACSZones { get; }
         ServiceApiRepository ServiceApis { get; }
 
         void SaveChanges();

@@ -6,7 +6,7 @@ namespace TrafficController.Mappings.Bases
 {
     public class PositionMapping
     {
-        public Position ApiGetResourceResponse(Response_PositionDto model)
+        public Position Response(Response_PositionDto model)
         {
             var response = new Position
             {
@@ -23,6 +23,8 @@ namespace TrafficController.Mappings.Bases
                 isDisplayed = model.isDisplayed,
                 isEnabled = model.isEnabled,
                 isOccupied = model.isOccupied,
+                linkedArea = model.linkedArea,
+                linkedZone = model.linkedZone,
                 linkedFacility = model.linkedFacility,
                 linkedRobotId = model.linkedRobotId,
                 hasCharger = model.hasCharger,
@@ -47,6 +49,8 @@ namespace TrafficController.Mappings.Bases
                 isDisplayed = model.isDisplayed,
                 isEnabled = model.isEnabled,
                 isOccupied = model.isOccupied,
+                linkedArea = model.linkedArea,
+                linkedZone = model.linkedZone,
                 linkedFacility = model.linkedFacility,
                 linkedRobotId = model.linkedRobotId,
                 hasCharger = model.hasCharger,

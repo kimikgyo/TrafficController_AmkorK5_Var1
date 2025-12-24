@@ -6,7 +6,7 @@ namespace TrafficController.Mappings.Bases
 {
     public class WorkerMapping
     {
-        public Worker ApiGetResourceResponse(Response_WorkerDto model)
+        public Worker Response(Response_WorkerDto model)
         {
             var response = new Worker()
             {

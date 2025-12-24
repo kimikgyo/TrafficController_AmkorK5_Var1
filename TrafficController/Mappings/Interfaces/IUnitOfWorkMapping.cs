@@ -11,6 +11,6 @@ namespace TrafficController.Mappings.Interfaces
         WorkerMapping Workers { get; }
         PositionMapping Positions { get; }
         MapMapping Maps { get; }
-        ACSAreaMapping ACSAreas { get; }
+        ACSZoneMapping ACSZones { get; }
     }
 }

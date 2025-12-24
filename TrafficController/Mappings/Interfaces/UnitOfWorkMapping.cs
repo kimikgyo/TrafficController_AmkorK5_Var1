@@ -11,7 +11,7 @@ namespace TrafficController.Mappings.Interfaces
         public WorkerMapping Workers { get; private set; }
         public PositionMapping Positions { get; private set; }
         public MapMapping Maps { get; private set; }
-        public ACSAreaMapping ACSAreas { get; private set; }
+        public ACSZoneMapping ACSZones { get; private set; }
         public UnitOfWorkMapping()
         {
             mapping();
@@ -23,7 +23,7 @@ namespace TrafficController.Mappings.Interfaces
             Workers = new WorkerMapping();
             Positions = new PositionMapping();
             Maps = new MapMapping();
-            ACSAreas = new ACSAreaMapping();
+            ACSZones = new ACSZoneMapping();
         }
 
         public void SaveChanges()

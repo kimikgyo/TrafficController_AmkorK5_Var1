@@ -32,9 +32,10 @@ namespace Common.Models.Bases
         [JsonPropertyOrder(12)] public bool isEnabled { get; set; }
         [JsonPropertyOrder(13)] public bool isOccupied { get; set; }
         [JsonPropertyOrder(14)] public string linkedArea { get; set; }
-        [JsonPropertyOrder(15)] public string linkedFacility { get; set; }
-        [JsonPropertyOrder(16)] public string linkedRobotId { get; set; }
-        [JsonPropertyOrder(17)] public bool hasCharger { get; set; }
+        [JsonPropertyOrder(15)] public string linkedZone { get; set; }
+        [JsonPropertyOrder(16)] public string linkedFacility { get; set; }
+        [JsonPropertyOrder(17)] public string linkedRobotId { get; set; }
+        [JsonPropertyOrder(18)] public bool hasCharger { get; set; }
 
         public override string ToString()
         {
@@ -53,6 +54,7 @@ namespace Common.Models.Bases
                 $",isEnabled = {isEnabled,-5}" +
                 $",isOccupied = {isOccupied,-5}" +
                 $",linkedArea = {linkedArea,-5}" +
+                $",linkedZone = {linkedZone,-5}" +
                 $",linkedFacility = {linkedFacility,-5}" +
                 $",linkedRobotId = {linkedRobotId,-5}" +
                 $",hasCharger = {hasCharger,-5}";

@@ -5,7 +5,7 @@ namespace JTrafficControllerOB.Mappings.Bases
 {
     public class MapMapping
     {
-        public Map ApiGetResourceResponse(Response_MapDto model)
+        public Map Response(Response_MapDto model)
         {
             var response = new Map
             {

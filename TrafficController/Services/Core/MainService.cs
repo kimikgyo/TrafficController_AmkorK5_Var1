@@ -9,7 +9,7 @@ namespace TrafficController.Services
 {
     public class MainService
     {
-        private static readonly ILog EventLogger = LogManager.GetLogger("Event");
+        private static readonly ILog EventLogger = LogManager.GetLogger("Event");   
 
         public readonly IUnitOfWorkRepository _repository;
         public readonly IConfiguration _configuration;
@@ -183,7 +183,7 @@ namespace TrafficController.Services
             //string message = ex.ToString();
             string message = ex.GetFullMessage() + Environment.NewLine + ex.StackTrace;
             Debug.WriteLine(message);
-            EventLogger.Info(message);
+            EventLogger.Error(message);
         }
     }
 }

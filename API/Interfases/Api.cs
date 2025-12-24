@@ -1,7 +1,7 @@
-﻿using Common.DTOs.Rests.Areas;
-using Common.DTOs.Rests.Maps;
+﻿using Common.DTOs.Rests.Maps;
 using Common.DTOs.Rests.Positions;
 using Common.DTOs.Rests.Workers;
+using Common.DTOs.Rests.Zone;
 using Common.Interfaces;
 using Common.Models.Bases;
 using log4net;
@@ -34,11 +34,11 @@ namespace RestApi.Interfases
             return httpClient;
         }
 
-        public async Task<List<Response_ACS_AareDto>> Get_ACS_Area_Async()
+        public async Task<List<Response_ACSZoneDto>> Get_ACSZone_Async()
         {
             try
             {
-                return await _httpClient.GetFromJsonAsync<List<Response_ACS_AareDto>>("api/acs-areas");
+                return await _httpClient.GetFromJsonAsync<List<Response_ACSZoneDto>>("api/zones");
             }
             //catch (Exception ex) when (True(() => _logger.Error(ex)))
             catch (Exception ex) when (True(() => ApiLogger.Error($"IPAddress = {_httpClient.BaseAddress}" + "\r\n" + ex)))

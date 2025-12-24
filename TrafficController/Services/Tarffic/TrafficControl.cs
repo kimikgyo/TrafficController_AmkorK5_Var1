@@ -1,23 +1,27 @@
 ﻿using Common.Models.Missions;
-using System.Reflection;
 
 namespace TrafficController.Services
 {
     public partial class TrafficService
     {
+        private const string PARAM_KEY = "linkedZone";
+
         private void TrafficControl()
         {
             PendingToExecuting();                        // 1) PENDING → EXECUTING 승격
-            completedToRemove();                        // 2) COMPLETE 중 Area 밖에 있는 것 삭제
+            CompletedToRemove();                        // 2) COMPLETE 중 Area 밖에 있는 것 삭제
             SkipedToRemove();
             var groupByArea = GroupMissionsByArea();    // 3) Area 기준 그룹핑
             ExecutingToCompleted(groupByArea);          // 4) Area별 순서대로 EXECUTING을 COMPLETE로 승격
         }
 
+        /// <summary>
+        /// 1) Pending → Executing (LINKEDAREA 없으면 SKIPPED)
+        /// </summary>
         private void PendingToExecuting()
         {
             // ------------------------------------------------------------
-            // [0] Repository 존재 여부 확인
+            // [0] Repository 방어
             // ------------------------------------------------------------
             if (_repository == null)
             {
@@ -25,168 +29,84 @@ namespace TrafficController.Services
                 return;
             }
 
-            try
+            // --------------------------------------------------------
+            // [1] 미션 조회
+            // --------------------------------------------------------
+            var missions = _repository.Missions.GetAll();
+            if (missions == null)
             {
-                // --------------------------------------------------------
-                // [1] 모든 미션 조회
-                // --------------------------------------------------------
-                var missions = _repository.Missions.GetAll();
-                if (missions == null)
-                {
-                    EventLogger.Warn("[Traffic][PendingToExecuting] Mission list is null. Aborting.");
-                    return;
-                }
-
-                // --------------------------------------------------------
-                // [2] PENDING 상태인 미션만 필터링
-                // --------------------------------------------------------
-                var pendingMissions = missions.Where(m => m != null && m.state == nameof(MissionState.PENDING)).ToList();
-
-                // --------------------------------------------------------
-                // [3] 각 PENDING 미션을 EXECUTING 으로 변경
-                // --------------------------------------------------------
-                foreach (var mission in pendingMissions)
-                {
-                    // mission 자체 방어
-                    if (mission == null)
-                    {
-                        EventLogger.Warn("[Traffic][PendingToExecuting] Mission instance is null. Skipping.");
-                        continue;
-                    }
-                    var linkedAreaParam = _repository.Missions.FindParameterByKey(mission.parameters, "LINKEDAREA");
-
-                    if (linkedAreaParam == null || string.IsNullOrWhiteSpace(linkedAreaParam.value))
-                    {
-                        // LINKEDAREA 가 없으면 트래픽 대상이 아니므로 스킵
-                        updateStateMission(mission, nameof(MissionState.SKIPPED), false);
-
-                        EventLogger.Info($"[Traffic][PendingToExecuting] LINKEDAREA not found or empty. Skip mission. guid={mission.guid}");
-                        continue;
-                    }
-                                           // 미션 상태 변경
-                        updateStateMission(mission, nameof(MissionState.EXECUTING), false);
-                }
+                EventLogger.Warn("[Traffic][PendingToExecuting] Mission list is null. Aborting.");
+                return;
             }
-            catch (Exception ex)
+
+            // --------------------------------------------------------
+            // [2] PENDING만 필터
+            // --------------------------------------------------------
+            var pendingMissions = missions
+                .Where(m => m != null && m.state == nameof(MissionState.PENDING))
+                .ToList();
+
+            if (pendingMissions.Count == 0)
+                return;
+
+            // --------------------------------------------------------
+            // [3] LINKEDAREA 있으면 EXECUTING, 없으면 SKIPPED
+            // --------------------------------------------------------
+            foreach (var mission in pendingMissions)
             {
-                // 예외 발생 시 공통 예외 로거 호출
-                main.LogExceptionMessage(ex);
+                if (mission == null)
+                {
+                    EventLogger.Warn("[Traffic][PendingToExecuting] Mission instance is null. Skipping.");
+                    continue;
+                }
+
+                var linkedAreaParam = _repository.Missions.FindParameterByKey(mission.parameters, PARAM_KEY);
+
+                if (linkedAreaParam == null || string.IsNullOrWhiteSpace(linkedAreaParam.value))
+                {
+                    // Traffic 대상이 아니므로 SKIPPED
+                    updateStateMission(mission, nameof(MissionState.SKIPPED), false);
+                    EventLogger.Info($"[Traffic][PendingToExecuting] LINKEDAREA empty. Skip mission. guid={mission.guid}, name={mission.name}");
+                    continue;
+                }
+
+                updateStateMission(mission, nameof(MissionState.EXECUTING), false);
             }
         }
 
+        /// <summary>
+        /// 2) Skipped → Remove
+        /// </summary>
         private void SkipedToRemove()
         {
-            var skipedMissions = _repository.Missions.GetAll().Where(m => m != null && m.state == nameof(MissionState.SKIPPED)).ToList();
+            if (_repository == null)
+            {
+                EventLogger.Error("[Traffic][SkipedToRemove] _repository is null. Aborting process.");
+                return;
+            }
+
+            var missions = _repository.Missions.GetAll();
+            if (missions == null)
+            {
+                EventLogger.Warn("[Traffic][SkipedToRemove] Mission list is null. Aborting.");
+                return;
+            }
+
+            var skipedMissions = missions
+                .Where(m => m != null && m.state == nameof(MissionState.SKIPPED))
+                .ToList();
+
             foreach (var skipedMission in skipedMissions)
             {
+                if (skipedMission == null) continue;
+
                 _repository.Missions.Remove(skipedMission);
                 EventLogger.Info($"[Traffic][SkipedToRemove] Mission Remove missionId={skipedMission.guid}, missionName={skipedMission.name}");
             }
         }
 
-        private void ExecutingToCompleted(Dictionary<string, List<Mission>> groupByArea)
-        {
-            //EventLogger.Info("[Traffic][ExecutingToCompleted] Start");
-
-            // ------------------------------------------------------------
-            // [0] 입력값 / 저장소 방어 코드
-            // ------------------------------------------------------------
-            if (groupByArea == null || groupByArea.Count == 0)
-            {
-                //EventLogger.Info("[Traffic][ExecutingToCompleted] groupByArea is null or empty. Nothing to process.");
-                return;
-            }
-
-            if (_repository == null)
-            {
-                EventLogger.Error("[Traffic][ExecutingToCompleted] _repository is null. Aborting process.");
-                return;
-            }
-
-            try
-            {
-                // --------------------------------------------------------
-                // [1] Area(구역) 별로 순회
-                // --------------------------------------------------------
-                foreach (var kv in groupByArea)
-                {
-                    string areaKey = kv.Key;                  // Area Key
-                    List<Mission> areaMissionList = kv.Value; // 해당 Area 의 미션 목록
-
-                    // Area 내부에 미션이 없으면 스킵
-                    if (areaMissionList == null || areaMissionList.Count == 0)
-                    {
-                        EventLogger.Info($"[Traffic][ExecutingToCompleted] No missions found for area. areaKey={areaKey}");
-                        continue;
-                    }
-
-                    // ----------------------------------------------------
-                    // [1-1] 이미 COMPLETED 미션이 있는지 확인
-                    //       (한 Area엔 COMPLETED는 1개만 존재해야 함)
-                    // ----------------------------------------------------
-                    bool hasCompleted = false;
-
-                    foreach (var m in areaMissionList)
-                    {
-                        if (m == null) continue;
-
-                        if (m.state == nameof(MissionState.COMPLETED))
-                        {
-                            hasCompleted = true;
-                            break;
-                        }
-                    }
-
-                    if (hasCompleted)
-                    {
-                        EventLogger.Info($"[Traffic][ExecutingToCompleted] COMPLETED mission already exists. Skip promotion. areaKey={areaKey}");
-                        continue;
-                    }
-
-                    // ----------------------------------------------------
-                    // [1-2] EXECUTING 상태 미션 필터링
-                    //       updatedAt 기준 오름차순 정렬(오래된 순)
-                    // ----------------------------------------------------
-                    var executingList = areaMissionList.Where(m => m != null && m.state == nameof(MissionState.EXECUTING)).OrderBy(m => m.updatedAt).ToList();
-
-                    if (executingList.Count == 0)
-                    {
-                        EventLogger.Info($"[Traffic][ExecutingToCompleted] No EXECUTING missions to promote. areaKey={areaKey}");
-                        continue;
-                    }
-
-                    // ----------------------------------------------------
-                    // [1-3] 가장 오래된 EXECUTING 미션 선택 (FirstOrDefault)
-                    // ----------------------------------------------------
-                    var mission = executingList.FirstOrDefault();
-
-                    if (mission == null)
-                    {
-                        // 리스트가 1개 이상 있어도 null 이 들어있을 가능성 대비
-                        EventLogger.Warn($"[Traffic][ExecutingToCompleted] FirstOrDefault returned null. Skip area. areaKey={areaKey}");
-                        continue;
-                    }
-
-                    // ----------------------------------------------------
-                    // [1-4] 해당 EXECUTING 미션을 COMPLETED 로 승격
-                    // ----------------------------------------------------
-                    EventLogger.Info($"[Traffic][ExecutingToCompleted] Promoting EXECUTING → COMPLETED. guid={mission.guid}, areaKey={areaKey}");
-
-                    updateStateMission(mission, nameof(MissionState.COMPLETED), true);
-
-                    EventLogger.Info($"[Traffic][ExecutingToCompleted] Promotion done. guid={mission.guid}, areaKey={areaKey}");
-                }
-
-                //EventLogger.Info("[Traffic][ExecutingToCompleted] Completed");
-            }
-            catch (Exception ex)
-            {
-                // 전체 프로세스에서 발생하는 예외 처리 (try/catch 단 1개)
-                EventLogger.Error($"[Traffic][ExecutingToCompleted] Exception occurred - Error: {ex.Message}");
-            }
-        }
-
         /// <summary>
+        /// 3) GroupMissionsByArea (LINKEDAREA 기준 그룹핑)
         /// 모든 미션을 AreaKey(LinkedArea) 기준으로 그룹핑하여
         /// Dictionary<string, List<Mission>> 형태로 반환한다.
         ///
@@ -195,11 +115,10 @@ namespace TrafficController.Services
         /// </summary>
         private Dictionary<string, List<Mission>> GroupMissionsByArea()
         {
-            // 결과용 딕셔너리 (AreaKey 별 미션 리스트)
             var groupByArea = new Dictionary<string, List<Mission>>();
 
             // ------------------------------------------------------------
-            // [0] Repository null 여부 체크
+            // [0] Repository 방어
             // ------------------------------------------------------------
             if (_repository == null)
             {
@@ -207,87 +126,104 @@ namespace TrafficController.Services
                 return groupByArea;
             }
 
-            try
+            // --------------------------------------------------------
+            // [1] 미션 조회
+            // --------------------------------------------------------
+            var missions = _repository.Missions.GetAll();
+            if (missions == null)
             {
-                // --------------------------------------------------------
-                // [1] 모든 미션 조회
-                // --------------------------------------------------------
-                var missions = _repository.Missions.GetAll();
-                if (missions == null)
-                {
-                    EventLogger.Warn("[Traffic][GroupMissionsByArea] Mission list is null. Return empty result.");
-                    return groupByArea;
-                }
-
-                // --------------------------------------------------------
-                // [2] 각 미션을 순회하면서 LINKEDAREA 기준으로 그룹핑
-                // --------------------------------------------------------
-                foreach (var mission in missions)
-                {
-                    // 미션 null 방어
-                    if (mission == null)
-                    {
-                        EventLogger.Warn("[Traffic][GroupMissionsByArea] Mission instance is null. Skipping.");
-                        continue;
-                    }
-
-                    // 파라미터 null / empty 방어
-                    if (mission.parameters == null || mission.parameters.Count == 0)
-                    {
-                        // Traffic 과 관련 없는 일반 미션으로 간주하고 스킵
-                        // (로그 레벨은 Info: 정상 플로우이지만 참고용)
-                        EventLogger.Info($"[Traffic][GroupMissionsByArea] Mission has no parameters. Skip traffic grouping. guid={mission.guid}");
-                        continue;
-                    }
-
-                    // ----------------------------------------------------
-                    // [2-1] LINKEDAREA 파라미터 조회
-                    // ----------------------------------------------------
-                    var linkedAreaParam = _repository.Missions.FindParameterByKey(mission.parameters, "LINKEDAREA");
-                    if (linkedAreaParam == null || string.IsNullOrWhiteSpace(linkedAreaParam.value))
-                    {
-                        // LINKEDAREA 가 없으면 트래픽 대상이 아니므로 스킵
-                        EventLogger.Info($"[Traffic][GroupMissionsByArea] LINKEDAREA not found or empty. Skip mission. guid={mission.guid}");
-                        continue;
-                    }
-
-                    string areaKey = linkedAreaParam.value;
-
-                    // ----------------------------------------------------
-                    // [2-2] AreaKey 기준으로 딕셔너리 그룹핑
-                    // ----------------------------------------------------
-                    List<Mission> listForArea;
-
-                    // 해당 AreaKey 가 처음이면 새 리스트 생성
-                    if (!groupByArea.TryGetValue(areaKey, out listForArea))
-                    {
-                        listForArea = new List<Mission>();
-                        groupByArea[areaKey] = listForArea;
-                    }
-
-                    // AreaKey 에 해당하는 리스트에 미션 추가
-                    listForArea.Add(mission);
-                }
-
-                // --------------------------------------------------------
-                // [3] 그룹핑 결과 로그
-                // --------------------------------------------------------
-                //EventLogger.Info($"[Traffic][GroupMissionsByArea] Grouping completed. Area count={groupByArea.Count}");
-
+                EventLogger.Warn("[Traffic][GroupMissionsByArea] Mission list is null. Return empty result.");
                 return groupByArea;
             }
-            catch (Exception ex)
+
+            // --------------------------------------------------------
+            // [2] LINKEDAREA 있는 미션만 그룹핑
+            // --------------------------------------------------------
+            foreach (var mission in missions)
             {
-                // 예외 발생 시 공통 예외 로거 호출
-                main.LogExceptionMessage(ex);
-                return groupByArea;
+                if (mission == null)
+                {
+                    EventLogger.Warn("[Traffic][GroupMissionsByArea] Mission is null. Skipping.");
+                    continue;
+                }
+
+                if (mission.parameters == null || mission.parameters.Count == 0)
+                {
+                    // Traffic 관련이 아니므로 스킵
+                    continue;
+                }
+
+                var linkedAreaParam = _repository.Missions.FindParameterByKey(mission.parameters, PARAM_KEY);
+                if (linkedAreaParam == null || string.IsNullOrWhiteSpace(linkedAreaParam.value))
+                    continue;
+
+                string areaKey = linkedAreaParam.value;
+
+                if (!groupByArea.ContainsKey(areaKey))
+                    groupByArea[areaKey] = new List<Mission>();
+
+                groupByArea[areaKey].Add(mission);
+            }
+
+            return groupByArea;
+        }
+
+        /// <summary>
+        /// 4) Executing → Completed
+        /// </summary>
+        /// <param name="groupByArea"></param>
+        private void ExecutingToCompleted(Dictionary<string, List<Mission>> groupByArea)
+        {
+            if (groupByArea == null) return;
+            if (groupByArea.Count == 0) return;
+
+            if (_repository == null)
+            {
+                EventLogger.Error("[Traffic][ExecutingToCompleted] _repository is null. Aborting process.");
+                return;
+            }
+
+            foreach (var kv in groupByArea)
+            {
+                string ZoneKey = kv.Key;
+                List<Mission> areaMissionList = kv.Value;
+
+                if (areaMissionList == null || areaMissionList.Count == 0)
+                    continue;
+
+                // COMPLETED가 이미 있으면 더 승격하지 않음
+                var hasCompleted = areaMissionList.FirstOrDefault(m => m != null && m.state == nameof(MissionState.COMPLETED));
+                if (hasCompleted != null)
+                    continue;
+
+                // EXECUTING 중 오래된 것 1개를 COMPLETED로 승격
+                var executingList = areaMissionList
+                    .Where(m => m != null && m.state == nameof(MissionState.EXECUTING))
+                    .OrderBy(m => m.updatedAt)
+                    .ToList();
+
+                if (executingList.Count == 0)
+                    continue;
+
+                var mission = executingList.FirstOrDefault();
+                if (mission == null)
+                {
+                    EventLogger.Warn($"[Traffic][ExecutingToCompleted] FirstOrDefault returned null. ZoneKey={ZoneKey}");
+                    continue;
+                }
+
+                EventLogger.Info($"[Traffic][ExecutingToCompleted] Promote EXECUTING->COMPLETED. guid={mission.guid},missionName={mission.name}, ZoneKey={ZoneKey}");
+                updateStateMission(mission, nameof(MissionState.COMPLETED), true);
             }
         }
 
-        private void completedToRemove()
+        /// <summary>
+        /// 5) Completed → Remove (폴리곤 기준 Inside/Outside 적용)
+        /// </summary>
+        private void CompletedToRemove()
         {
             // ------------------------------------------------------------
-            // [0] Repository null 여부 체크
+            // [0] Repository 방어
             // ------------------------------------------------------------
             if (_repository == null)
             {
@@ -295,122 +231,120 @@ namespace TrafficController.Services
                 return;
             }
 
-            try
+            // --------------------------------------------------------
+            // [1] 미션 조회
+            // --------------------------------------------------------
+            var missions = _repository.Missions.GetAll();
+            if (missions == null)
             {
-                // --------------------------------------------------------
-                // [1] 모든 미션 조회
-                // --------------------------------------------------------
-                var missions = _repository.Missions.GetAll();
-                if (missions == null)
-                {
-                    EventLogger.Warn("[Traffic][CompletedToRemove] Mission list is null. Aborting.");
-                    return;
-                }
-
-                // --------------------------------------------------------
-                // [2] COMPLETED 상태인 미션만 필터링
-                // --------------------------------------------------------
-                var completedMissions = missions.Where(m => m != null && m.state == nameof(MissionState.COMPLETED)).ToList();
-
-                //EventLogger.Info($"[Traffic][CompletedToRemove] Completed mission count: {completedMissions.Count}");
-
-                // --------------------------------------------------------
-                // [3] 각 COMPLETED 미션 처리
-                // --------------------------------------------------------
-                foreach (var mission in completedMissions)
-                {
-                    // mission null 방어
-                    if (mission == null)
-                    {
-                        EventLogger.Warn("[Traffic][CompletedToRemove] Mission instance is null. Skipping.");
-                        continue;
-                    }
-
-                    // ----------------------------------------------------
-                    // [3-1] 파라미터 존재 여부 체크
-                    // ----------------------------------------------------
-                    if (mission.parameters == null || mission.parameters.Count == 0)
-                    {
-                        // 파라미터 없으면 Traffic 미션이 아니므로 스킵
-                        EventLogger.Info($"[Traffic][CompletedToRemove] Mission has no parameters. Skip traffic check. guid={mission.guid}");
-                        continue;
-                    }
-
-                    // ----------------------------------------------------
-                    // [3-2] LINKEDAREA 파라미터 조회
-                    // ----------------------------------------------------
-                    var linkedAreaParam = _repository.Missions.FindParameterByKey(mission.parameters, "LINKEDAREA");
-                    if (mission.state != nameof(MissionState.SKIPPED) && (linkedAreaParam == null || string.IsNullOrWhiteSpace(linkedAreaParam.value)))
-                    {
-                        // Traffic 미션이 아니므로 스킵
-                        EventLogger.Info($"[Traffic][CompletedToRemove] LINKEDAREA not found or empty. Skip mission. guid={mission.guid}");
-                        continue;
-                    }
-
-                    string areaKey = linkedAreaParam.value;
-
-                    // ----------------------------------------------------
-                    // [3-3] Area 정보 조회
-                    // ----------------------------------------------------
-                    var area = _repository.ACSAreas.GetById(areaKey);
-                    if (area == null)
-                    {
-                        EventLogger.Warn($"[Traffic][CompletedToRemove] Area not found. guid={mission.guid}, areaKey={areaKey}");
-                        continue;
-                    }
-
-                    // ----------------------------------------------------
-                    // [3-4] 배정된 Worker 여부 체크
-                    // ----------------------------------------------------
-                    if (string.IsNullOrWhiteSpace(mission.assignedWorkerId))
-                    {
-                        // Worker 정보가 없으므로 정책상 삭제
-                        EventLogger.Warn($"[Traffic][CompletedToRemove] assignedWorkerId is empty. Remove mission. guid={mission.guid}");
-
-                        _repository.Missions.Remove(mission);
-                        //EventLogger.Info($"[Traffic][CompletedToRemove] Mission removed (no worker). guid={mission.guid}");
-                        continue;
-                    }
-
-                    // ----------------------------------------------------
-                    // [3-5] Worker 정보 조회
-                    // ----------------------------------------------------
-                    var worker = _repository.Workers.GetById(mission.assignedWorkerId);
-                    if (worker == null)
-                    {
-                        // Worker 정보를 찾을 수 없으므로 정책상 삭제
-                        EventLogger.Warn($"[Traffic][CompletedToRemove] Worker not found. workerId={mission.assignedWorkerId}, guid={mission.guid}");
-
-                        _repository.Missions.Remove(mission);
-                        //EventLogger.Info($"[Traffic][CompletedToRemove] Mission removed (worker not found). guid={mission.guid}");
-                        continue;
-                    }
-
-                    // ----------------------------------------------------
-                    // [3-6] Worker가 Area 내부에 있는지 여부 체크
-                    // ----------------------------------------------------
-                    bool inside = _repository.ACSAreas.IsInsideArea(worker.position_X, worker.position_Y, area);
-
-                    if (!inside)
-                    {
-                        // Area 밖으로 나갔으므로 안전하게 삭제
-                        mission.finishedAt = DateTime.Now;
-                        _repository.Missions.Update(mission);
-                        _repository.Missions.Remove(mission);
-
-                        //EventLogger.Info($"[Traffic][CompletedToRemove] Worker is outside area. Mission removed. guid={mission.guid}, workerId={mission.assignedWorkerId}");
-                    }
-                    else
-                    {
-                        // Area 내부에 있으므로 유지
-                        EventLogger.Info($"[Traffic][CompletedToRemove] Worker still inside area. Keep mission. guid={mission.guid}, workerId={mission.assignedWorkerId}");
-                    }
-                }
+                EventLogger.Warn("[Traffic][CompletedToRemove] Mission list is null. Aborting.");
+                return;
             }
-            catch (Exception ex)
+
+            // --------------------------------------------------------
+            // [2] COMPLETED 상태 미션만
+            // --------------------------------------------------------
+            var completedMissions = missions.Where(m => m != null && m.state == nameof(MissionState.COMPLETED)).ToList();
+
+            foreach (var mission in completedMissions)
             {
-                // 공통 예외 처리 로거
-                main.LogExceptionMessage(ex);
+                if (mission == null) continue;
+
+                // 파라미터 없으면 Traffic 미션이 아니므로 스킵
+                if (mission.parameters == null || mission.parameters.Count == 0)
+                    continue;
+
+                // LINKEDAREA 조회 (COMPLETED인데 LINKEDAREA 없으면 Traffic이 아니므로 스킵)
+                var linkedZoneParam = _repository.Missions.FindParameterByKey(mission.parameters, PARAM_KEY);
+                if (linkedZoneParam == null || string.IsNullOrWhiteSpace(linkedZoneParam.value))
+                    continue;
+
+                string ZoneKey = linkedZoneParam.value;
+
+                // Area 조회
+                var Zone = _repository.ACSZones.GetById(ZoneKey);
+                if (Zone == null)
+                {
+                    EventLogger.Warn($"[Traffic][CompletedToRemove] Area not found. guid={mission.guid}, ZoneKey={ZoneKey}");
+                    continue;
+                }
+
+                // 폴리곤 캐시 준비 확인
+                if (Zone.cacheReady == false)
+                {
+                    EventLogger.Warn($"[Traffic][CompletedToRemove] Area cacheReady=false. Skip remove check. guid={mission.guid}, ZoneId={Zone.zoneId}, ZoneName={Zone.name}");
+                    continue;
+                }
+
+                // Worker 배정 확인
+                if (string.IsNullOrWhiteSpace(mission.assignedWorkerId))
+                {
+                    // Worker 정보가 없으면 정책상 삭제
+                    EventLogger.Warn($"[Traffic][CompletedToRemove] assignedWorkerId empty. Remove mission. guid={mission.guid}, ZoneKey={ZoneKey}");
+                    _repository.Missions.Remove(mission);
+                    continue;
+                }
+
+                // Worker 조회
+                var worker = _repository.Workers.GetById(mission.assignedWorkerId);
+                if (worker == null)
+                {
+                    EventLogger.Warn($"[Traffic][CompletedToRemove] Worker not found. workerId={mission.assignedWorkerId}, guid={mission.guid}. Remove mission.");
+                    _repository.Missions.Remove(mission);
+                    continue;
+                }
+
+                // mapId 불일치면 판정하지 않음(맵 전환/엘리베이터 등)
+                if (Zone.mapId != worker.mapId)
+                {
+                    EventLogger.Warn(
+                        $"[Traffic][CompletedToRemove] mapId mismatch. Keep mission. guid={mission.guid}" +
+                        $",workerId={worker.id}, workerMap={worker.mapId}, areaMap={Zone.mapId}, zoneId={Zone.zoneId}"
+                    );
+                    continue;
+                }
+
+                // ----------------------------------------------------
+                // [핵심] 폴리곤 Inside 판정
+                // ----------------------------------------------------
+                bool inside =_repository.ACSZones.IsInsideZone(worker.position_X, worker.position_Y, Zone);
+
+                // 1) 아직 한번도 IN 한 적 없는데, 지금 IN이면 기록만 남기고 유지
+                if (mission.enteredZoneOnce == false && inside)
+                {
+                    mission.enteredZoneOnce = true;
+                    _repository.Missions.Update(mission); // DB에 남길 거면 Update, 아니면 생략 가능
+
+                    EventLogger.Info($"[Traffic][CompletedToRemove] First ENTER. Mark enteredZoneOnce=true. guid={mission.guid},missionName={mission.name}, workerId={worker.id},workerName={worker.name}" +
+                                     $", zoneId={Zone.zoneId}, zoneName = {Zone.name}");
+                    return; // 또는 continue
+                }
+
+                // 2) 한번도 IN 안 했고 지금도 OUT이면 → Remove 금지(유지)
+                if (mission.enteredZoneOnce == false && inside == false)
+                {
+                    // 필요하면 로그는 Debug 수준 권장(너무 많이 찍힘)
+                    // EventLogger.Info($"[Traffic][CompletedToRemove] Not entered yet. Keep. guid={mission.guid}");
+                    return; // 또는 continue
+                }
+
+                // 3) IN을 한번이라도 했고, 이제 OUT이면 → Remove
+                if (mission.enteredZoneOnce && inside == false)
+                {
+                    mission.finishedAt = DateTime.UtcNow;
+
+                    _repository.Missions.Update(mission);
+                    _repository.Missions.Remove(mission);
+
+                    EventLogger.Info($"[Traffic][CompletedToRemove] EXIT after enteredOnce. Remove mission. guid={mission.guid}, missionName={mission.name}, workerId={worker.id},workerName={worker.name}" +
+                                     $", zoneId={Zone.zoneId}, zoneName = {Zone.name}");
+                }
+                else
+                {
+                    // Area 내부면 유지
+                    EventLogger.Info($"[Traffic][CompletedToRemove] Worker still inside polygon Zone. Keep mission. guid={mission.guid},missionName={mission.name}, workerId={worker.id},workerName={worker.name}" +
+                                     $", zoneId={Zone.zoneId}, zoneName = {Zone.name}");
+                }
             }
         }
     }

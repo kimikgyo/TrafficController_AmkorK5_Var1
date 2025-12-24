@@ -49,7 +49,8 @@ namespace Data.Repositorys.Jobs
                         [sequenceChangeCount]      int             NULL,
                         [retryCount]               int             NULL,
                         [specifiedWorkerId]        NVARCHAR(64)     NULL,
-                        [assignedWorkerId]         NVARCHAR(64)     NULL,
+                        [assignedWorkerId]         NVARCHAR(64)     NULL,                        
+                        [enteredZoneOnce]           int              NULL,
                         [parametersJson]            NVARCHAR(2000)    NULL,
                         [preReportsJson]            NVARCHAR(2000)    NULL,
                         [postReportsJson]           NVARCHAR(2000)    NULL,
@@ -113,7 +114,8 @@ namespace Data.Repositorys.Jobs
                                       ,[sequenceChangeCount]
                                       ,[retryCount]
                                       ,[specifiedWorkerId]
-                                      ,[assignedWorkerId]
+                                      ,[assignedWorkerId]                                      
+                                      ,[enteredZoneOnce]
                                       ,[parametersJson]
                                       ,[preReportsJson]
                                       ,[postReportsJson]
@@ -140,7 +142,8 @@ namespace Data.Repositorys.Jobs
                                         ,@sequenceChangeCount
                                         ,@retryCount
                                         ,@specifiedWorkerId
-                                        ,@assignedWorkerId
+                                        ,@assignedWorkerId                                        
+                                        ,@enteredZoneOnce
                                         ,@parametersJson
                                         ,@preReportsJson
                                         ,@postReportsJson
@@ -182,7 +185,8 @@ namespace Data.Repositorys.Jobs
                                ,[sequenceChangeCount]      =  @sequenceChangeCount
                                ,[retryCount]               =  @retryCount
                                ,[specifiedWorkerId]        =  @specifiedWorkerId
-                               ,[assignedWorkerId]         =  @assignedWorkerId
+                               ,[assignedWorkerId]         =  @assignedWorkerId                               
+                               ,[enteredZoneOnce]         =  @enteredZoneOnce
                                ,[parametersJson]           =  @parametersJson
                                ,[preReportsJson]           =  @preReportsJson
                                ,[postReportsJson]          =  @postReportsJson

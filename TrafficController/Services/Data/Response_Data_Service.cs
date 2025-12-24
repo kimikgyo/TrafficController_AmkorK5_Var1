@@ -1,17 +1,16 @@
-﻿using Common.DTOs.Rests.Areas;
-using Common.DTOs.Rests.Maps;
+﻿using Common.DTOs.Rests.Maps;
 using Common.DTOs.Rests.Positions;
 using Common.DTOs.Rests.Workers;
+using Common.DTOs.Rests.Zone;
 using Common.Models;
-using Common.Models.Areas;
 using Common.Models.Bases;
+using Common.Models.Zone;
 using Data.Interfaces;
 using Data.Repositorys.Bases;
 using log4net;
 using RestApi.Interfases;
 using System.Data;
 using System.Diagnostics;
-using System.Linq;
 using TrafficController.Mappings.Interfaces;
 
 namespace TrafficController.Services
@@ -19,6 +18,7 @@ namespace TrafficController.Services
     public class Response_Data_Service
     {
         private static readonly ILog ApiLogger = LogManager.GetLogger("ApiEvent");
+        private static readonly ILog EventLogger = LogManager.GetLogger("Event");
 
         public readonly IUnitOfWorkRepository _repository;
         public readonly IUnitOfWorkMapping _mapping;
@@ -51,11 +51,11 @@ namespace TrafficController.Services
                             _repository.Workers.Delete();
                             _repository.Maps.Delete();
                             _repository.Positions.Delete();
-                            _repository.ACSAreas.Delete();
+                            _repository.ACSZones.Delete();
                             var Workers = await serviceApi.Api.Get_Worker_Async();
                             var Maps = await serviceApi.Api.Get_Map_Async();
                             var Positions = await serviceApi.Api.Get_Position_Async();
-                            var AcsAreas = await serviceApi.Api.Get_ACS_Area_Async();
+                            var AcsZones = await serviceApi.Api.Get_ACSZone_Async();
 
                             if (Workers == null)
                             {
@@ -72,34 +72,35 @@ namespace TrafficController.Services
                                 _eventlog.Info($"{nameof(Positions)}GetDataFail");
                                 break;
                             }
-                            else if (AcsAreas == null)
+                            else if (AcsZones == null)
                             {
-                                _eventlog.Info($"{nameof(AcsAreas)}GetDataFail");
+                                _eventlog.Info($"{nameof(AcsZones)}GetDataFail");
                                 break;
                             }
                             else
                             {
                                 foreach (var getmap in Maps)
                                 {
-                                    var map = _mapping.Maps.ApiGetResourceResponse(getmap);
+                                    var map = _mapping.Maps.Response(getmap);
                                     _repository.Maps.Add(map);
                                 }
 
                                 foreach (var getworker in Workers)
                                 {
-                                    var worker = _mapping.Workers.ApiGetResourceResponse(getworker);
+                                    var worker = _mapping.Workers.Response(getworker);
                                     _repository.Workers.Add(worker);
                                 }
 
                                 foreach (var getPosition in Positions)
                                 {
-                                    var position = _mapping.Positions.ApiGetResourceResponse(getPosition);
+                                    var position = _mapping.Positions.Response(getPosition);
                                     _repository.Positions.Add(position);
                                 }
-                                foreach (var getAcsArea in AcsAreas)
+                                foreach (var getAcsZone in AcsZones)
                                 {
-                                    var acsArea = _mapping.ACSAreas.Response(getAcsArea);
-                                    _repository.ACSAreas.Add(acsArea);
+                                    var acsZone = _mapping.ACSZones.Response(getAcsZone);
+                                    _repository.ACSZones.FillAreaCacheOne(acsZone);
+                                    _repository.ACSZones.Add(acsZone);
                                 }
                                 Resource = true;
                             }
@@ -176,7 +177,7 @@ namespace TrafficController.Services
                             var getReloadWorkers = await serviceApi.Api.Get_Worker_Async();
                             var getReloadMaps = await serviceApi.Api.Get_Map_Async();
                             var getReloadPositions = await serviceApi.Api.Get_Position_Async();
-                            var getAcsAreas = await serviceApi.Api.Get_ACS_Area_Async();
+                            var getAcsZones = await serviceApi.Api.Get_ACSZone_Async();
                             if (getReloadWorkers == null)
                             {
                                 _eventlog.Info($"{nameof(getReloadWorkers)}GetDataFail");
@@ -192,9 +193,9 @@ namespace TrafficController.Services
                                 _eventlog.Info($"{nameof(getReloadPositions)}GetDataFail");
                                 break;
                             }
-                            else if (getAcsAreas == null)
+                            else if (getAcsZones == null)
                             {
-                                _eventlog.Info($"{nameof(getAcsAreas)}GetDataFail");
+                                _eventlog.Info($"{nameof(getAcsZones)}GetDataFail");
                                 break;
                             }
                             else
@@ -202,7 +203,7 @@ namespace TrafficController.Services
                                 ReloadMap(getReloadMaps);
                                 ReloadWorker(getReloadWorkers);
                                 ReloadPosition(getReloadPositions);
-                                ReloadACSArea(getAcsAreas);
+                                ReloadACSZone(getAcsZones);
                                 Resource = true;
                             }
                         }
@@ -225,56 +226,52 @@ namespace TrafficController.Services
             return Complete;
         }
 
-        private void ReloadACSArea(List<Response_ACS_AareDto> response_ACS_AareDtos)
+        private void ReloadACSZone(List<Response_ACSZoneDto> response_ACS_ZoneDtos)
         {
-            List<ACSArea> Reload = new List<ACSArea>();
+            List<ACSZone> Reload = new List<ACSZone>();
 
             //update Add
-            foreach (var response_ACS_AareDto in response_ACS_AareDtos)
+            foreach (var response_ACS_ZoneDto in response_ACS_ZoneDtos)
             {
-                Reload.Add(_mapping.ACSAreas.Response(response_ACS_AareDto));
+                Reload.Add(_mapping.ACSZones.Response(response_ACS_ZoneDto));
             }
 
-            var ReloadId = Reload.Select(x => x.areaId);
-            var aCSAreas = _repository.ACSAreas.GetAll();
-            var aCSAreaIds = aCSAreas.Select(x => x.areaId);
+            var ReloadId = Reload.Select(x => x.zoneId);
+            var aCSZones = _repository.ACSZones.GetAll();
+            var aCSAreaIds = aCSZones.Select(x => x.zoneId);
 
             //새로운 데이터 기준 으로 기존데이터가 없는것
-            var AddACSAreas = Reload.Where(x => !aCSAreaIds.Contains(x.areaId)).ToList();
-            foreach (var AddACSArea in AddACSAreas)
+            var AddACSZones = Reload.Where(x => !aCSAreaIds.Contains(x.zoneId)).ToList();
+            foreach (var AddACSZone in AddACSZones)
             {
-                _repository.ACSAreas.Add(AddACSArea);
+                _repository.ACSZones.FillAreaCacheOne(AddACSZone);
+                _repository.ACSZones.Add(AddACSZone);
             }
 
             //기존데이터 기준 새로운 데이터와 같은것 업데이트
-            foreach (var aCSArea in aCSAreas)
+            foreach (var aCSZone in aCSZones)
             {
-                var Update = Reload.FirstOrDefault(x => x.areaId == aCSArea.areaId);
+                var Update = Reload.FirstOrDefault(x => x.zoneId == aCSZone.zoneId);
                 if (Update != null)
                 {
-                    aCSArea.areaId = Update.areaId;
-                    aCSArea.mapId = Update.mapId;
-                    aCSArea.name = Update.name;
-                    aCSArea.type = Update.type;
-                    aCSArea.subType = Update.subType;
-                    aCSArea.groupId = Update.groupId;
-                    aCSArea.linkedNode = Update.linkedNode;
-                    aCSArea.linkedFacility = Update.linkedFacility;
-                    aCSArea.x = Update.x;
-                    aCSArea.y = Update.y;
-                    aCSArea.theta = Update.theta;
-                    aCSArea.width = Update.width;
-                    aCSArea.height = Update.height;
-                    aCSArea.isDisplayed = Update.isDisplayed;
-                    aCSArea.isEnabled = Update.isEnabled;
+                    aCSZone.zoneId = Update.zoneId;
+                    aCSZone.mapId = Update.mapId;
+                    aCSZone.name = Update.name;
+                    aCSZone.type = Update.type;
+                    aCSZone.subType = Update.subType;
+                    aCSZone.groupId = Update.groupId;
+                    aCSZone.linkedNode = Update.linkedNode;
+                    aCSZone.polygon = Update.polygon;
+                    aCSZone.isDisplayed = Update.isDisplayed;
+                    aCSZone.isEnabled = Update.isEnabled;
                 }
             }
 
             //기존데이터 기준 에서 새로운데이터가 없는것
-            var removes = aCSAreas.Where(x => !ReloadId.Contains(x.areaId)).ToList();
+            var removes = aCSZones.Where(x => !ReloadId.Contains(x.zoneId)).ToList();
             foreach (var remove in removes)
             {
-                _repository.ACSAreas.Remove(remove);
+                _repository.ACSZones.Remove(remove);
             }
         }
 
@@ -284,7 +281,7 @@ namespace TrafficController.Services
             //update Add
             foreach (var dtoResourceMap in dtoResourceMaps)
             {
-                Reload.Add(_mapping.Maps.ApiGetResourceResponse(dtoResourceMap));
+                Reload.Add(_mapping.Maps.Response(dtoResourceMap));
             }
 
             var ReloadId = Reload.Select(x => x.id).ToList();
@@ -326,7 +323,7 @@ namespace TrafficController.Services
 
             foreach (var dtoResourceWorker in dtoResourceWorkers)
             {
-                var ReloadWorker = _mapping.Workers.ApiGetResourceResponse(dtoResourceWorker);
+                var ReloadWorker = _mapping.Workers.Response(dtoResourceWorker);
                 Reload.Add(ReloadWorker);
             }
 
@@ -387,7 +384,7 @@ namespace TrafficController.Services
             //update Add
             foreach (var dtoResourcePosition in dtoResourcePositions)
             {
-                Reload.Add(_mapping.Positions.ApiGetResourceResponse(dtoResourcePosition));
+                Reload.Add(_mapping.Positions.Response(dtoResourcePosition));
             }
 
             var ReloadId = Reload.Select(x => x.id);
@@ -447,6 +444,8 @@ namespace TrafficController.Services
                 }
             }
         }
+
+
 
         public void LogExceptionMessage(Exception ex)
         {

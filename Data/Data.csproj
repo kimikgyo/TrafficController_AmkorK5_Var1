@@ -29,8 +29,4 @@
     <ProjectReference Include="..\Common\Common.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Repositorys\Areas\" />
-  </ItemGroup>
-
 </Project>

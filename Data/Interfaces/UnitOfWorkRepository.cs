@@ -30,7 +30,7 @@ namespace Data.Interfaces
         #endregion Base
 
         public MissionRepository Missions { get; private set; }
-        public ACS_AreaRepository ACSAreas { get; private set; }
+        public ACS_ZoneRepository ACSZones { get; private set; }
         public ServiceApiRepository ServiceApis { get; private set; }
 
         public UnitOfWorkRepository()
@@ -51,7 +51,7 @@ namespace Data.Interfaces
             Missions = new MissionRepository(connectionString);
 
             ServiceApis = new ServiceApiRepository(connectionString);
-            ACSAreas = new ACS_AreaRepository(connectionString);
+            ACSZones = new ACS_ZoneRepository(connectionString);
         }
 
         public void SaveChanges()

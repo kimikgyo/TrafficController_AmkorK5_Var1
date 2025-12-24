@@ -119,6 +119,13 @@ namespace Common.Models.Missions
         [JsonPropertyOrder(26)] public string postReportsJson { get; set; }        //Mission 이후에 보내지는 Report
         [JsonPropertyOrder(27)] public List<PostReport> postReports { get; set; } = new List<PostReport>();
 
+        /// <summary>
+        /// 트래픽 Zone/Area에 '한 번이라도' 들어갔는지 여부
+        /// - COMPLETED->REMOVE 단계에서 "IN 한번 후 OUT" 조건을 만들기 위한 플래그
+        /// - DB 저장이 필요 없으면 JsonIgnore(또는 NotMapped) 처리
+        /// </summary>
+        public bool enteredZoneOnce { get; set; }
+
         // 사람용 요약 (디버거/로그에서 보기 좋게)
         public override string ToString()
         {
@@ -190,6 +197,7 @@ namespace Common.Models.Missions
                 $",state = {state,-5}" +
                 $",specifiedWorkerId = {specifiedWorkerId,-5}" +
                 $",assignedWorkerId = {assignedWorkerId,-5}" +
+                $",enteredZoneOnce = {enteredZoneOnce,-5}" +
                 $",parametersJson = {parametersJson,-5}" +
                 $",parameters = [{parametersStr,-5}]" +
                 $",preReportsJson = {preReportsJson,-5}" +
