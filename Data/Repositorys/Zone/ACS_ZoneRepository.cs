@@ -117,6 +117,7 @@ namespace Data.Repositorys.Areas
             return insideX && insideY;
         }
         */
+
         /// <summary>
         /// [단건] ACSZone 캐시 채우기
         /// - 매핑 직후 호출
@@ -127,110 +128,146 @@ namespace Data.Repositorys.Areas
         /// - true  : cacheReady=true (캐시 준비 완료)
         /// - false : cacheReady=false (disabled 또는 invalid)
         /// </summary>
-        public bool FillAreaCacheOne(ACSZone area)
+        /// <summary>
+        /// [단건] ACSZone의 폴리곤 캐시(xs/ys, bbox)를 채운다.
+        ///
+        /// 처리 내용:
+        /// 1) cache 초기화
+        /// 2) enabled=false면 캐시 생성 안 함(cacheReady=false 유지)
+        /// 3) polygon 유효성 검사(최소 3점)
+        /// 4) 폐합점(첫점==끝점)이면 마지막 점 제거
+        /// 5) xs/ys 배열 생성
+        /// 6) bounding box(minX/maxX/minY/maxY) 계산
+        /// 7) cacheReady=true 설정
+        /// </summary>
+        public bool FillAreaCacheOne(ACSZone zone)
         {
             // ------------------------------------------------------------
             // 0) 방어 코드
             // ------------------------------------------------------------
-            if (area == null)
+            if (zone == null)
             {
-                logger.Warn("[AREA][CACHE][ONE][SKIP] area is null");
+                logger.Warn("[ZONE][CACHE][ONE][SKIP] zone is null");
                 return false;
             }
 
             // ------------------------------------------------------------
-            // 1) 리로드/재사용 대비 캐시 기본값 초기화
+            // 1) 캐시 기본값 초기화 (재호출/리로드 대비)
             // ------------------------------------------------------------
-            area.cacheReady = false;
-            area.xs = new double[0];
-            area.ys = new double[0];
-            area.minX = 0;
-            area.maxX = 0;
-            area.minY = 0;
-            area.maxY = 0;
+            zone.cacheReady = false;
+            zone.xs = new double[0];
+            zone.ys = new double[0];
+            zone.minX = 0;
+            zone.maxX = 0;
+            zone.minY = 0;
+            zone.maxY = 0;
 
             // ------------------------------------------------------------
-            // 2) disabled면 캐시 미생성(하지만 Area 자체는 유지)
+            // 2) 비활성 Zone이면 캐시 생성하지 않음 (Zone 자체는 유지)
             // ------------------------------------------------------------
-            if (area.isEnabled == false)
+            if (zone.isEnabled == false)
             {
-                logger.Info($"[AREA][CACHE][ONE][DISABLED] cacheReady=false. zoneId={area.zoneId}, mapId={area.mapId}, name={area.name}");
+                logger.Info($"[ZONE][CACHE][ONE][DISABLED] cacheReady=false. zoneId={zone.zoneId}, mapId={zone.mapId}, name={zone.name}");
                 return false;
             }
 
             // ------------------------------------------------------------
-            // 3) polygon 유효성 검사 (invalid면 cacheReady=false 유지)
+            // 3) polygon 유효성 검사
             // ------------------------------------------------------------
-            if (area.polygon == null)
+            if (zone.polygon == null)
             {
-                logger.Warn($"[AREA][CACHE][ONE][INVALID] polygon is null. cacheReady=false. zoneId={area.zoneId}, mapId={area.mapId}, name={area.name}");
+                logger.Warn($"[ZONE][CACHE][ONE][INVALID] polygon is null. cacheReady=false. zoneId={zone.zoneId}, mapId={zone.mapId}, name={zone.name}");
                 return false;
             }
 
-            if (area.polygon.Count < 3)
+            if (zone.polygon.Count < 3)
             {
-                logger.Warn($"[AREA][CACHE][ONE][INVALID] polygon points < 3. cacheReady=false. zoneId={area.zoneId}, mapId={area.mapId}, name={area.name}, count={area.polygon.Count}");
+                logger.Warn($"[ZONE][CACHE][ONE][INVALID] polygon points < 3. cacheReady=false. zoneId={zone.zoneId}, mapId={zone.mapId}, name={zone.name}, count={zone.polygon.Count}");
                 return false;
             }
 
             // ------------------------------------------------------------
-            // 4) 폐합점 제거(첫점=끝점) : 마지막 점이 첫 점과 같으면 제거
+            // 4) 폐합점 제거 (첫점 == 끝점이면 마지막 점 제거)
+            // - 일부 시스템은 닫힌 폴리곤 표현을 위해 마지막 점을 첫 점과 동일하게 넣음
+            // - RayCasting / Edge 체크는 (첫점=끝점) 중복이 있으면 애매해질 수 있으니 제거 권장
             // ------------------------------------------------------------
-            Point2D first = area.polygon[0];
-            Point2D last = area.polygon[area.polygon.Count - 1];
+            Point2D first = zone.polygon[0];
+            Point2D last = zone.polygon[zone.polygon.Count - 1];
+
+            bool removedClosingPoint = false;
 
             if (IsSamePoint(first, last))
             {
-                area.polygon.RemoveAt(area.polygon.Count - 1);
+                zone.polygon.RemoveAt(zone.polygon.Count - 1);
+                removedClosingPoint = true;
 
-                if (area.polygon.Count < 3)
+                // 제거 후에도 최소 3점 필요
+                if (zone.polygon.Count < 3)
                 {
-                    logger.Warn($"[AREA][CACHE][ONE][INVALID] invalid after closing-point removal. cacheReady=false. zoneId={area.zoneId}, mapId={area.mapId}, name={area.name}");
+                    logger.Warn($"[ZONE][CACHE][ONE][INVALID] invalid after closing-point removal. cacheReady=false. zoneId={zone.zoneId}, mapId={zone.mapId}, name={zone.name}");
                     return false;
                 }
             }
 
             // ------------------------------------------------------------
-            // 5) xs/ys 배열 캐시 생성 (판정 최적화)
+            // 5) xs/ys 배열 생성 + 좌표 유효성 방어(NaN/Infinity)
             // ------------------------------------------------------------
-            area.xs = area.polygon.Select(p => p.X).ToArray();
-            area.ys = area.polygon.Select(p => p.Y).ToArray();
+            // (중요) Min/Max는 NaN이 섞이면 결과가 NaN으로 망가질 수 있음
+            // -> 캐시 생성 단계에서 걸러주는게 안전
+            for (int i = 0; i < zone.polygon.Count; i++)
+            {
+                double px = zone.polygon[i].X;
+                double py = zone.polygon[i].Y;
+
+                if (double.IsNaN(px) || double.IsInfinity(px) || double.IsNaN(py) || double.IsInfinity(py))
+                {
+                    logger.Warn($"[ZONE][CACHE][ONE][INVALID] polygon has NaN/Infinity. zoneId={zone.zoneId}, mapId={zone.mapId}, name={zone.name}, index={i}, x={px}, y={py}");
+                    return false;
+                }
+            }
+
+            zone.xs = zone.polygon.Select(p => p.X).ToArray();
+            zone.ys = zone.polygon.Select(p => p.Y).ToArray();
 
             // ------------------------------------------------------------
-            // 6) BoundingBox 캐시 생성 (빠른 1차 컷)
+            // 6) BoundingBox 생성 (빠른 1차 컷)
             // ------------------------------------------------------------
-            area.minX = area.xs.Min();
-            area.maxX = area.xs.Max();
-            area.minY = area.ys.Min();
-            area.maxY = area.ys.Max();
+            zone.minX = zone.xs.Min();
+            zone.maxX = zone.xs.Max();
+            zone.minY = zone.ys.Min();
+            zone.maxY = zone.ys.Max();
 
             // ------------------------------------------------------------
             // 7) 캐시 준비 완료
             // ------------------------------------------------------------
-            area.cacheReady = true;
+            zone.cacheReady = true;
 
-            //EventLogger.Info(
-            //    $"[AREA][CACHE][ONE][OK] cacheReady=true. zoneId={area.zoneId}, mapId={area.mapId}, name={area.name}" +
-            //    $",points={area.polygon.Count}, bbox=({area.minX:0.###},{area.minY:0.###})~({area.maxX:0.###},{area.maxY:0.###})"
+            // 필요한 경우 캐시 생성 로그
+            //logger.Info(
+            //    $"[ZONE][CACHE][ONE][OK] zoneId={zone.zoneId}, mapId={zone.mapId}, name={zone.name}, points={zone.polygon.Count}" +
+            //    $",removedClosingPoint={removedClosingPoint}, bbox=({zone.minX:0.###},{zone.minY:0.###})~({zone.maxX:0.###},{zone.maxY:0.###})"
             //);
 
             return true;
         }
 
         /// <summary>
-        /// 두 점이 같은 점인지 판단 (폐합점 제거용)
+        /// 두 점이 같은 점인지 판단(폐합점 제거용)
+        /// - tol(허용오차) 이내면 동일점으로 판단
         /// </summary>
         private static bool IsSamePoint(Point2D a, Point2D b)
         {
             if (a == null) return false;
             if (b == null) return false;
 
+            // 좌표계가 meter라면 1e-6m = 0.000001m 는 사실상 동일점
             double tol = 0.000001;
 
-            double dx = a.X - b.Y;
+            // 버그 수정: X는 X끼리, Y는 Y끼리 비교해야 한다.
+            double dx = a.X - b.X;
             if (dx < 0) dx = -dx;
 
-            double dy = a.X - b.Y;
+            double dy = a.Y - b.Y;
             if (dy < 0) dy = -dy;
 
             if (dx <= tol && dy <= tol)
@@ -239,96 +276,82 @@ namespace Data.Repositorys.Areas
             return false;
         }
 
-        // ------------------------------------------------------------
-        // 폴리곤 Inside 판정(캐시 사용)
-        // - Zone.cacheReady=true 인 경우에만 의미 있음
-        // - AABB(바운딩박스) 1차 컷 + Edge epsilon + RayCasting(PIP)
-        // ------------------------------------------------------------
-        public bool IsInsideZone(double x, double y, ACSZone Zone)
+        /// <summary>
+        /// 폴리곤 Inside 판정(캐시 사용)
+        /// - cacheReady=true 인 경우에만 의미 있음
+        /// - AABB(바운딩박스) 1차 컷 + Edge epsilon + RayCasting(PIP)
+        /// </summary>
+        public bool IsInsideZone(double x, double y, ACSZone zone)
         {
-            if (Zone == null) return false;
+            // ------------------------------------------------------------
+            // 0) 방어 코드
+            // ------------------------------------------------------------
+            if (zone == null) return false;
+            if (zone.isEnabled == false) return false;
+            if (zone.cacheReady == false) return false;
 
-            // enabled 아니면 트래픽 대상이 아니므로 false
-            if (Zone.isEnabled == false) return false;
-
-            // 캐시 준비가 안됐으면 판정 불가
-            if (Zone.cacheReady == false) return false;
+            // 좌표 유효성 방어
+            if (double.IsNaN(x) || double.IsInfinity(x)) return false;
+            if (double.IsNaN(y) || double.IsInfinity(y)) return false;
 
             // 배열 방어
-            if (Zone.xs == null) return false;
-            if (Zone.ys == null) return false;
-            if (Zone.xs.Length < 3) return false;
-            if (Zone.ys.Length < 3) return false;
-            if (Zone.xs.Length != Zone.ys.Length) return false;
+            if (zone.xs == null) return false;
+            if (zone.ys == null) return false;
+            if (zone.xs.Length < 3) return false;
+            if (zone.ys.Length < 3) return false;
+            if (zone.xs.Length != zone.ys.Length) return false;
 
-            double eps = Zone.epsilonMeters;
+            // ------------------------------------------------------------
+            // 1) AABB 1차 컷(빠른 필터)
+            // - epsilonMeters를 포함해 바운딩박스를 약간 확장해서 튐을 줄임
+            // ------------------------------------------------------------
+            double eps = zone.epsilonMeters;
 
-            // [1] AABB 1차 컷(빠름)
-            if (x < Zone.minX - eps) return false;
-            if (x > Zone.maxX + eps) return false;
-            if (y < Zone.minY - eps) return false;
-            if (y > Zone.maxY + eps) return false;
+            if (x < zone.minX - eps) return false;
+            if (x > zone.maxX + eps) return false;
+            if (y < zone.minY - eps) return false;
+            if (y > zone.maxY + eps) return false;
 
-            // [2] 경계선 근처면 inside 처리(튐 방지)
-            if (IsOnEdge(Zone.xs, Zone.ys, x, y, eps))
+            // ------------------------------------------------------------
+            // 2) 경계선 근처면 inside로 인정(센서 노이즈 튐 방지)
+            // ------------------------------------------------------------
+            if (IsOnEdge(zone.xs, zone.ys, x, y, eps))
                 return true;
 
-            // [3] PIP - Ray Casting
-            return RayCasting(Zone.xs, Zone.ys, x, y);
+            // ------------------------------------------------------------
+            // 3) Ray Casting(PIP)으로 내부 판정
+            // ------------------------------------------------------------
+            return RayCasting(zone.xs, zone.ys, x, y);
         }
 
         /// <summary>
         /// Ray Casting(짝/홀 규칙)으로 점 (x,y)가 다각형 내부인지 판정한다.
         /// - true  : 내부
         /// - false : 외부
-        /// 주의: 경계(변 위)인 경우는 별도 처리(IsOnEdge 등)로 먼저 걸러주는게 안전함.
+        /// 주의: 경계(변 위)는 IsOnEdge로 먼저 처리하는 것이 안전
         /// </summary>
         private bool RayCasting(double[] xs, double[] ys, double x, double y)
         {
-            // 내부 여부 (교차할 때마다 토글)
             bool inside = false;
-
-            // 꼭짓점 개수
             int n = xs.Length;
 
-            // i: 현재 꼭짓점, j: 이전 꼭짓점 (처음엔 마지막 점이 이전 점)
-            // (j -> i) 가 하나의 변(선분)
             for (int i = 0, j = n - 1; i < n; j = i++)
             {
-                // 현재 점(i)와 이전 점(j)의 좌표
                 double xi = xs[i];
                 double yi = ys[i];
                 double xj = xs[j];
                 double yj = ys[j];
 
-                // ------------------------------------------------------------
-                // 1) y 기준으로, 변 (j->i)가 수평선 y와 "교차 가능한지" 체크
-                //
-                // ((yi > y) != (yj > y)) :
-                //  - 한 점은 y보다 위, 다른 점은 y보다 아래(또는 그 반대)면 true
-                //  - 둘 다 위거나 둘 다 아래면 false (교차 없음)
-                // ------------------------------------------------------------
+                // y 기준으로 한 점은 위, 다른 점은 아래면 교차 가능
                 bool cross = ((yi > y) != (yj > y));
-
                 if (cross)
                 {
-                    // --------------------------------------------------------
-                    // 2) 교차한다면, 수평선 y에서 변 (j->i)와 만나는 교차점의 x좌표(xOnEdge) 계산
-                    //
-                    // 선분 방정식을 y 기준으로 보간(interpolation)한 형태:
-                    // xOnEdge = xi + (xj - xi) * (y - yi) / (yj - yi)
-                    //
-                    // cross가 true면 (yj - yi)가 0이 되는 완전 수평선은 제외되므로
-                    // 여기서 0으로 나눌 가능성이 낮아짐(실제로는 안전해짐).
-                    // --------------------------------------------------------
+                    // 교차점 x좌표 계산
                     double xOnEdge = (xj - xi) * (y - yi) / (yj - yi) + xi;
 
-                    // --------------------------------------------------------
-                    // 3) 점(x,y)에서 오른쪽으로 쏜 반직선이 교차점을 "지나는지" 확인
-                    //    즉, 점의 x가 교차점 x보다 왼쪽이면 교차 1번으로 카운트
-                    // --------------------------------------------------------
+                    // 점에서 오른쪽으로 레이를 쏴서 교차하면 inside 토글
                     if (x < xOnEdge)
-                        inside = inside == false;
+                        inside = !inside;
                 }
             }
 
@@ -336,108 +359,151 @@ namespace Data.Repositorys.Areas
         }
 
         /// <summary>
-        /// 다각형의 경계(Edge) 위(또는 아주 근접)에 점 (x, y)가 있는지 검사한다.
-        /// - xs, ys: 다각형 꼭짓점 좌표 배열 (같은 길이여야 함)
-        /// - 다각형의 각 변( i -> i+1 )에 대해 점과 선분 사이 최단거리 d를 구하고,
-        ///   d <= epsilon 이면 "경계 위"로 판단한다.
+        /// 다각형의 경계(Edge) 위(또는 epsilon 이내 근접)에 점 (x, y)가 있는지 검사한다.
+        /// - 모든 변에 대해 점~선분 최단거리 <= epsilon 이면 true
         /// </summary>
         private bool IsOnEdge(double[] xs, double[] ys, double x, double y, double epsilon)
         {
-            // 허용오차가 0 이하이면 "근접"이라는 개념이 없으므로 false 처리
             if (epsilon <= 0) return false;
 
-            // 꼭짓점 개수 (변의 개수도 동일)
             int n = xs.Length;
 
-            // 모든 변(선분)을 순회: (i) -> (j)
             for (int i = 0; i < n; i++)
             {
-                // 다음 꼭짓점 인덱스
                 int j = i + 1;
-
-                // 마지막 꼭짓점이면 다음은 0으로 돌아가서
-                // 마지막 점 -> 첫 점으로 이어지는 "닫힌" 변을 만든다.
                 if (j >= n) j = 0;
 
-                // 점 (x,y) 와 선분 (xs[i],ys[i]) ~ (xs[j],ys[j]) 사이 최단거리 계산
-                // (앞에서 만든 DistancePointToSegment 함수 사용)
                 double d = DistancePointToSegment(x, y, xs[i], ys[i], xs[j], ys[j]);
-
-                // 최단거리가 epsilon 이하면,
-                // "점이 이 변 위(또는 매우 근접)"이라고 판단 → 즉시 true 리턴
                 if (d <= epsilon) return true;
             }
-            // 어떤 변에도 가깝지 않으면 경계 위가 아님
+
             return false;
         }
 
         /// <summary>
         /// 점 P(px, py)에서 선분 AB(ax, ay) ~ (bx, by)까지의 최단거리(유클리드 거리)를 계산한다.
-        /// - 선분: A와 B를 잇는 "구간" (무한 직선이 아니라 A~B 사이만)
-        /// - 핵심: P를 AB에 정사영(projection)한 점 C를 구하고, C가 선분 밖이면 A/B로 클램프하여 거리 계산
+        /// - P를 AB에 정사영한 점 C를 구하고, C가 선분 밖이면 A 또는 B로 clamping 후 거리 계산
         /// </summary>
-
         private double DistancePointToSegment(double px, double py, double ax, double ay, double bx, double by)
         {
-            // ------------------------------------------------------------
-            // 1) 벡터 AB = B - A
-            // ------------------------------------------------------------
             double abx = bx - ax;
             double aby = by - ay;
-
-            // ------------------------------------------------------------
-            // 2) 벡터 AP = P - A  (A 기준으로 P가 어디 있는지)
-            // ------------------------------------------------------------
 
             double apx = px - ax;
             double apy = py - ay;
 
-            // ------------------------------------------------------------
-            // 3) |AB|^2 (AB 길이의 제곱)
-            //    - 제곱을 쓰는 이유: 루트(Sqrt) 없이 연산 가능해서 빠르고 안정적
-            // ------------------------------------------------------------
             double abLen2 = abx * abx + aby * aby;
 
-            // ------------------------------------------------------------
-            // 4) 예외 케이스: A와 B가 같은 점이면 "선분"이 아니라 "점"이 됨
-            //    → 그럴 땐 P와 A 사이 거리로 처리
-            // ------------------------------------------------------------
+            // A==B면 선분이 아니라 점
             if (abLen2 <= 0.0)
             {
                 double dx0 = px - ax;
                 double dy0 = py - ay;
                 return Math.Sqrt(dx0 * dx0 + dy0 * dy0);
             }
-            // ------------------------------------------------------------
-            // 5) 정사영 비율 t 계산
-            //    t = (AP · AB) / |AB|^2
-            //    - t가 0이면 투영점이 A
-            //    - t가 1이면 투영점이 B
-            //    - 0~1 사이면 선분 내부의 어떤 점
-            // ------------------------------------------------------------
+
+            // t = (AP·AB)/|AB|^2
             double t = (apx * abx + apy * aby) / abLen2;
 
-            // ------------------------------------------------------------
-            // 6) 선분이므로 t를 0~1로 "클램프"
-            //    - t < 0  : 투영점이 A보다 앞쪽(선분 밖) → A로 고정
-            //    - t > 1  : 투영점이 B보다 뒤쪽(선분 밖) → B로 고정
-            // ------------------------------------------------------------
+            // 선분이므로 0~1로 클램프
             if (t < 0.0) t = 0.0;
             if (t > 1.0) t = 1.0;
 
-            // ------------------------------------------------------------
-            // 7) 가장 가까운 점 C = A + t * AB
-            //    (투영점이 선분 밖이면 이미 A/B로 클램프 되어 있음)
-            // ------------------------------------------------------------
+            // C = A + t*AB
             double cx = ax + t * abx;
             double cy = ay + t * aby;
 
-            // ------------------------------------------------------------
-            // 8) 거리 = |P - C|
-            // ------------------------------------------------------------
             double dx = px - cx;
             double dy = py - cy;
+
             return Math.Sqrt(dx * dx + dy * dy);
         }
+
+        /// <summary>
+        /// Exit(OUT) 확정 판정
+        /// - inside가 false로 나왔더라도(레이캐스팅 결과), 경계 근처 튐일 수 있다.
+        /// - hysteresisMeters 만큼 "확실히 멀어졌을 때"만 Exit로 인정한다.
+        ///
+        /// 사용 시나리오:
+        /// 1) inside = IsInsideZone(x,y,zone) 가 false일 때
+        /// 2) 이미 한번 IN 했던 상태(enteredOnce=true)일 때
+        /// 3) IsExitConfirmed(...) == true 이면 Remove/Exit 처리
+        /// </summary>
+        public bool IsExitConfirmed(double x, double y, ACSZone zone)
+        {
+            // ------------------------------------------------------------
+            // 0) 방어 코드
+            // ------------------------------------------------------------
+            if (zone == null) return false;
+            if (zone.isEnabled == false) return false;
+            if (zone.cacheReady == false) return false;
+
+            // 좌표 유효성 방어
+            if (double.IsNaN(x) || double.IsInfinity(x)) return false;
+            if (double.IsNaN(y) || double.IsInfinity(y)) return false;
+
+            // 배열 방어
+            if (zone.xs == null) return false;
+            if (zone.ys == null) return false;
+            if (zone.xs.Length < 3) return false;
+            if (zone.ys.Length < 3) return false;
+            if (zone.xs.Length != zone.ys.Length) return false;
+
+            // ------------------------------------------------------------
+            // 1) hysteresis 값
+            // - 0 이하이면 "outside가 되는 순간 Exit 확정"으로 취급
+            // ------------------------------------------------------------
+            double h = zone.hysteresisMeters;
+            if (h <= 0) return true;
+
+            // ------------------------------------------------------------
+            // 2) 확장 BoundingBox 밖이면 "확실히 멀어짐" → Exit 확정
+            // - zone bbox를 h 만큼 확장한 박스 밖이면, 경계에서 최소 h 이상 멀어진 것
+            // ------------------------------------------------------------
+            if (x < zone.minX - h) return true;
+            if (x > zone.maxX + h) return true;
+            if (y < zone.minY - h) return true;
+            if (y > zone.maxY + h) return true;
+
+            // ------------------------------------------------------------
+            // 3) 확장 BoundingBox 안이면, "경계선까지 최단거리"로 Exit 확정 여부 판단
+            // - 현재 점이 폴리곤 경계선에서 h 이상 떨어졌을 때만 Exit 확정
+            // ------------------------------------------------------------
+            double d = DistanceToEdges(zone.xs, zone.ys, x, y);
+
+            if (d >= h)
+                return true;
+
+            // 아직 경계 근처(튐 가능) → Exit 확정 아님
+            return false;
+        }
+
+        /// <summary>
+        /// 점(x,y)에서 폴리곤 "모든 변"까지의 최단거리(min)를 구한다.
+        /// - Exit hysteresis 판단용
+        /// </summary>
+        private double DistanceToEdges(double[] xs, double[] ys, double x, double y)
+        {
+            int n = xs.Length;
+
+            // Any 금지 → 첫 변으로 초기값 설정
+            int j0 = 1;
+            if (j0 >= n) j0 = 0;
+
+            double min = DistancePointToSegment(x, y, xs[0], ys[0], xs[j0], ys[j0]);
+
+            // 나머지 변들에 대해 최소값 갱신
+            for (int i = 1; i < n; i++)
+            {
+                int j = i + 1;
+                if (j >= n) j = 0;
+
+                double d = DistancePointToSegment(x, y, xs[i], ys[i], xs[j], ys[j]);
+                if (d < min) min = d;
+            }
+
+            return min;
+        }
+
     }
 }

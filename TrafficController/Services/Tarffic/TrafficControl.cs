@@ -307,7 +307,7 @@ namespace TrafficController.Services
                 // ----------------------------------------------------
                 // [핵심] 폴리곤 Inside 판정
                 // ----------------------------------------------------
-                bool inside =_repository.ACSZones.IsInsideZone(worker.position_X, worker.position_Y, Zone);
+                bool inside = _repository.ACSZones.IsInsideZone(worker.position_X, worker.position_Y, Zone);
 
                 // 1) 아직 한번도 IN 한 적 없는데, 지금 IN이면 기록만 남기고 유지
                 if (mission.enteredZoneOnce == false && inside)
@@ -331,13 +331,24 @@ namespace TrafficController.Services
                 // 3) IN을 한번이라도 했고, 이제 OUT이면 → Remove
                 if (mission.enteredZoneOnce && inside == false)
                 {
-                    mission.finishedAt = DateTime.UtcNow;
+                    //에어리어를 지났는데도 정확히 Exit를 확인하기 위해서 일정거리가 지나면 Exit로 감지한다
+                    bool exitConfirmed = _repository.ACSZones.IsExitConfirmed(worker.position_X, worker.position_Y, Zone);
 
-                    _repository.Missions.Update(mission);
-                    _repository.Missions.Remove(mission);
+                    if (exitConfirmed)
+                    {
+                        mission.finishedAt = DateTime.UtcNow;
 
-                    EventLogger.Info($"[Traffic][CompletedToRemove] EXIT after enteredOnce. Remove mission. guid={mission.guid}, missionName={mission.name}, workerId={worker.id},workerName={worker.name}" +
-                                     $", zoneId={Zone.zoneId}, zoneName = {Zone.name}");
+                        _repository.Missions.Update(mission);
+                        _repository.Missions.Remove(mission);
+
+                        EventLogger.Info($"[Traffic][CompletedToRemove] EXIT after enteredOnce. Remove mission. guid={mission.guid}, missionName={mission.name}, workerId={worker.id},workerName={worker.name}" +
+                                         $", zoneId={Zone.zoneId}, zoneName = {Zone.name}");
+                    }
+                    else
+                    {
+                        // 아직 경계 근처 튐일 수 있으니 유지
+                        EventLogger.Info($"[Traffic][CompletedToRemove] OUT but not confirmed yet. Keep. guid={mission.guid}");
+                    }
                 }
                 else
                 {

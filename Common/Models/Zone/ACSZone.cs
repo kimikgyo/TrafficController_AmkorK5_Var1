@@ -70,14 +70,14 @@ namespace Common.Models.Zone
         /// - 점이 폴리곤 경계선(edge) 근처에 있으면 inside로 인정하는 여유값
         /// - 좌표 노이즈로 인한 In/Out 튐 방지에 도움
         /// </summary>
-        public double epsilonMeters { get; set; } = 0.02;
+        public double epsilonMeters { get; set; } = 0.01;
 
         /// <summary>
         /// Exit 히스테리시스(m)
         /// - Inside 상태에서 outside가 되더라도, 일정 거리 이상 확실히 멀어졌을 때만 Exit 처리
         /// - 경계 부근에서 Exit/Enter 반복되는 현상 방지
         /// </summary>
-        public double hysteresisMeters { get; set; } = 0.05;
+        public double hysteresisMeters { get; set; } = 0.01;
 
         /// <summary>
         /// 우선순위(겹치는 Area 처리용)
