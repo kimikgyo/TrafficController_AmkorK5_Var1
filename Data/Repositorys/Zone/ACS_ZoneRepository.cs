@@ -67,6 +67,7 @@ namespace Data.Repositorys.Areas
                 return _aCS_Areas.FirstOrDefault(a => a.zoneId == Id);
             }
         }
+
         /*
         /// <summary>
         /// 로봇 좌표 (rx, ry)가 Area 사각형 안에 있는지 체크
@@ -281,7 +282,7 @@ namespace Data.Repositorys.Areas
         /// - cacheReady=true 인 경우에만 의미 있음
         /// - AABB(바운딩박스) 1차 컷 + Edge epsilon + RayCasting(PIP)
         /// </summary>
-        public bool IsInsideZone(double x, double y, ACSZone zone)
+        public bool IsInsideZone(double x, double y, string mapId, ACSZone zone)
         {
             // ------------------------------------------------------------
             // 0) 방어 코드
@@ -300,6 +301,9 @@ namespace Data.Repositorys.Areas
             if (zone.xs.Length < 3) return false;
             if (zone.ys.Length < 3) return false;
             if (zone.xs.Length != zone.ys.Length) return false;
+            
+            //같은Map이아닐경우
+            if(mapId != zone.mapId) return false;
 
             // ------------------------------------------------------------
             // 1) AABB 1차 컷(빠른 필터)
@@ -429,7 +433,7 @@ namespace Data.Repositorys.Areas
         /// 2) 이미 한번 IN 했던 상태(enteredOnce=true)일 때
         /// 3) IsExitConfirmed(...) == true 이면 Remove/Exit 처리
         /// </summary>
-        public bool IsExitConfirmed(double x, double y, ACSZone zone)
+        public bool IsExitConfirmed(double x, double y, string mapId, ACSZone zone)
         {
             // ------------------------------------------------------------
             // 0) 방어 코드
@@ -448,7 +452,8 @@ namespace Data.Repositorys.Areas
             if (zone.xs.Length < 3) return false;
             if (zone.ys.Length < 3) return false;
             if (zone.xs.Length != zone.ys.Length) return false;
-
+            //MapId와 zoneMapId 가 다르면 Out 상태
+            if(mapId != zone.mapId) return false;
             // ------------------------------------------------------------
             // 1) hysteresis 값
             // - 0 이하이면 "outside가 되는 순간 Exit 확정"으로 취급
@@ -504,6 +509,5 @@ namespace Data.Repositorys.Areas
 
             return min;
         }
-
     }
 }

@@ -19,7 +19,7 @@ namespace Common.DTOs.Rests.Missions
         [JsonPropertyOrder(12)] public int sequenceChangeCount { get; set; } = 0;
         [JsonPropertyOrder(13)] public int retryCount { get; set; } = 0;
         [JsonPropertyOrder(14)] public string state { get; set; }
-        [JsonPropertyOrder(15)] public string specifiedWorkerId { get; set; }
+        [JsonPropertyOrder(15)] public string? specifiedWorkerId { get; set; }
         [JsonPropertyOrder(16)] public string assignedWorkerId { get; set; }
         [JsonPropertyOrder(17)] public List<Parameter> parameters { get; set; }
         [JsonPropertyOrder(18)] public List<PreReport>? preReports { get; set; }

@@ -197,10 +197,7 @@ namespace TrafficController.Services
                     continue;
 
                 // EXECUTING 중 오래된 것 1개를 COMPLETED로 승격
-                var executingList = areaMissionList
-                    .Where(m => m != null && m.state == nameof(MissionState.EXECUTING))
-                    .OrderBy(m => m.updatedAt)
-                    .ToList();
+                var executingList = areaMissionList.Where(m => m != null && m.state == nameof(MissionState.EXECUTING)).OrderBy(m => m.updatedAt).ToList();
 
                 if (executingList.Count == 0)
                     continue;
@@ -265,14 +262,14 @@ namespace TrafficController.Services
                 var Zone = _repository.ACSZones.GetById(ZoneKey);
                 if (Zone == null)
                 {
-                    EventLogger.Warn($"[Traffic][CompletedToRemove] Area not found. guid={mission.guid}, ZoneKey={ZoneKey}");
+                    EventLogger.Warn($"[Traffic][CompletedToRemove] Zone not found. guid={mission.guid}, ZoneKey={ZoneKey}");
                     continue;
                 }
 
                 // 폴리곤 캐시 준비 확인
                 if (Zone.cacheReady == false)
                 {
-                    EventLogger.Warn($"[Traffic][CompletedToRemove] Area cacheReady=false. Skip remove check. guid={mission.guid}, ZoneId={Zone.zoneId}, ZoneName={Zone.name}");
+                    EventLogger.Warn($"[Traffic][CompletedToRemove] Zone cacheReady=false. Skip remove check. guid={mission.guid}, ZoneId={Zone.zoneId}, ZoneName={Zone.name}");
                     continue;
                 }
 
@@ -307,7 +304,7 @@ namespace TrafficController.Services
                 // ----------------------------------------------------
                 // [핵심] 폴리곤 Inside 판정
                 // ----------------------------------------------------
-                bool inside = _repository.ACSZones.IsInsideZone(worker.position_X, worker.position_Y, Zone);
+                bool inside = _repository.ACSZones.IsInsideZone(worker.position_X, worker.position_Y,worker.mapId, Zone);
 
                 // 1) 아직 한번도 IN 한 적 없는데, 지금 IN이면 기록만 남기고 유지
                 if (mission.enteredZoneOnce == false && inside)
@@ -315,9 +312,9 @@ namespace TrafficController.Services
                     mission.enteredZoneOnce = true;
                     _repository.Missions.Update(mission); // DB에 남길 거면 Update, 아니면 생략 가능
 
-                    EventLogger.Info($"[Traffic][CompletedToRemove] First ENTER. Mark enteredZoneOnce=true. guid={mission.guid},missionName={mission.name}, workerId={worker.id},workerName={worker.name}" +
-                                     $", zoneId={Zone.zoneId}, zoneName = {Zone.name}");
-                    return; // 또는 continue
+                    EventLogger.Info($"[Traffic][CompletedToRemove] First ENTER. Mark. guid={mission.guid},missionName={mission.name}, workerId={worker.id},workerName={worker.name}" +
+                                     $", zoneId={Zone.zoneId}, zoneName = {Zone.name}, enteredZoneOnce={mission.enteredZoneOnce}");
+                    continue; // 또는 continue
                 }
 
                 // 2) 한번도 IN 안 했고 지금도 OUT이면 → Remove 금지(유지)
@@ -325,14 +322,14 @@ namespace TrafficController.Services
                 {
                     // 필요하면 로그는 Debug 수준 권장(너무 많이 찍힘)
                     // EventLogger.Info($"[Traffic][CompletedToRemove] Not entered yet. Keep. guid={mission.guid}");
-                    return; // 또는 continue
+                    continue; // 또는 continue
                 }
 
                 // 3) IN을 한번이라도 했고, 이제 OUT이면 → Remove
                 if (mission.enteredZoneOnce && inside == false)
                 {
                     //에어리어를 지났는데도 정확히 Exit를 확인하기 위해서 일정거리가 지나면 Exit로 감지한다
-                    bool exitConfirmed = _repository.ACSZones.IsExitConfirmed(worker.position_X, worker.position_Y, Zone);
+                    bool exitConfirmed = _repository.ACSZones.IsExitConfirmed(worker.position_X, worker.position_Y,worker.mapId, Zone);
 
                     if (exitConfirmed)
                     {
@@ -342,19 +339,20 @@ namespace TrafficController.Services
                         _repository.Missions.Remove(mission);
 
                         EventLogger.Info($"[Traffic][CompletedToRemove] EXIT after enteredOnce. Remove mission. guid={mission.guid}, missionName={mission.name}, workerId={worker.id},workerName={worker.name}" +
-                                         $", zoneId={Zone.zoneId}, zoneName = {Zone.name}");
+                                         $", zoneId={Zone.zoneId}, zoneName = {Zone.name}, enteredZoneOnce={mission.enteredZoneOnce}");
                     }
                     else
                     {
                         // 아직 경계 근처 튐일 수 있으니 유지
-                        EventLogger.Info($"[Traffic][CompletedToRemove] OUT but not confirmed yet. Keep. guid={mission.guid}");
+                        EventLogger.Info($"[Traffic][CompletedToRemove] OUT but not confirmed yet. Keep.  guid={mission.guid}, missionName={mission.name}, workerId={worker.id},workerName={worker.name}" +
+                                         $", zoneId={Zone.zoneId}, zoneName = {Zone.name}, enteredZoneOnce={mission.enteredZoneOnce}");
                     }
                 }
                 else
                 {
                     // Area 내부면 유지
-                    EventLogger.Info($"[Traffic][CompletedToRemove] Worker still inside polygon Zone. Keep mission. guid={mission.guid},missionName={mission.name}, workerId={worker.id},workerName={worker.name}" +
-                                     $", zoneId={Zone.zoneId}, zoneName = {Zone.name}");
+                    EventLogger.Info($"[Traffic][CompletedToRemove] Worker still inside polygon Zone. Keep mission. guid={mission.guid}, missionName={mission.name}, workerId={worker.id},workerName={worker.name}" +
+                                         $", zoneId={Zone.zoneId}, zoneName = {Zone.name}, enteredZoneOnce={mission.enteredZoneOnce}");
                 }
             }
         }
