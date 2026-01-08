@@ -237,7 +237,13 @@ namespace Data.Repositorys.Jobs
                 return _missions.ToList();
             }
         }
-
+        public Mission GetById(string Id)
+        {
+            lock (_lock)
+            {
+                return _missions.FirstOrDefault(m => m.guid == Id);
+            }
+        }
         public List<Mission> GetByJobId(string jobId)
         {
             lock (_lock)

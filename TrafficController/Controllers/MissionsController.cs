@@ -25,19 +25,58 @@ namespace TrafficController.Controllers
             _mqttQueue = mqttQueue;
         }
 
-        //// GET: api/<ValuesController>
-        //[HttpGet]
-        //public ActionResult<Get_MissionDto> Get()
-        //{
-        //    return new string[] { "value1", "value2" };
-        //}
+        // GET: api/<ValuesController>
+        [HttpGet]
+        public ActionResult<List<Get_MissionDto>> Get()
+        {
+            try
+            {
+                List<Get_MissionDto> _responseDtos = new List<Get_MissionDto>();
 
-        //// GET api/<ValuesController>/5
-        //[HttpGet("{id}")]
-        //public string Get(int id)
-        //{
-        //    return "value";
-        //}
+                foreach (var mission in _repository.Missions.GetAll())
+                {
+                    var responce = _mapping.Missions.Get(mission);
+
+                    _responseDtos.Add(responce);
+                    //logger.Info($"{this.ControllerLogPath()} GetAll = {responceJob}");
+                }
+
+                return Ok(_responseDtos);
+            }
+            catch (Exception ex)
+            {
+                //LogExceptionMessage(ex);
+                return NotFound();
+            }
+        }
+
+        // GET api/<ValuesController>/5
+        [HttpGet("{id}")]
+        public ActionResult<Get_MissionDto> Get(string id)
+        {
+            try
+            {
+                Get_MissionDto responseDto = null;
+
+                var mission = _repository.Missions.GetById(id);
+                if (mission != null)
+                {
+                    responseDto = _mapping.Missions.Get(mission);
+                    //logger.Info($"{this.ControllerLogPath(id)} GetById = {responseDto}");
+                    return Ok(responseDto);
+                }
+                else
+                {
+                    return NotFound();
+
+                }
+            }
+            catch (Exception ex)
+            {
+                //LogExceptionMessage(ex);
+                return NotFound();
+            }
+        }
 
         // POST api/<ValuesController>
         [HttpPost]
@@ -62,10 +101,10 @@ namespace TrafficController.Controllers
         //}
 
         // DELETE api/<ValuesController>/5
-        [HttpDelete("{acsMissionId}")]
-        public ActionResult Delete(string acsMissionId)
+        [HttpDelete("{Id}")]
+        public ActionResult Delete(string Id)
         {
-            var mission = _repository.Missions.GetByACSMissionId(acsMissionId);
+            var mission = _repository.Missions.GetById(Id);
             if (mission != null)
             {
                 updateStateMission(mission, nameof(MissionState.CANCELED), true);
