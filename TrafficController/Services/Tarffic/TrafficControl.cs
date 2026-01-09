@@ -306,23 +306,25 @@ namespace TrafficController.Services
                 // ----------------------------------------------------
                 bool inside = _repository.ACSZones.IsInsideZone(worker.position_X, worker.position_Y,worker.mapId, Zone);
 
-                // 1) 아직 한번도 IN 한 적 없는데, 지금 IN이면 기록만 남기고 유지
                 if (mission.enteredZoneOnce == false && inside)
                 {
-                    mission.enteredZoneOnce = true;
-                    _repository.Missions.Update(mission); // DB에 남길 거면 Update, 아니면 생략 가능
+                    // 1) 아직 한번도 IN 한 적 없는데, 지금 IN이면 기록만 남기고 유지
+                    if (inside)
+                    {
+                        mission.enteredZoneOnce = true;
+                        _repository.Missions.Update(mission); // DB에 남길 거면 Update, 아니면 생략 가능
 
-                    EventLogger.Info($"[Traffic][CompletedToRemove] First ENTER. Mark. guid={mission.guid},missionName={mission.name}, workerId={worker.id},workerName={worker.name}" +
-                                     $", zoneId={Zone.zoneId}, zoneName = {Zone.name}, enteredZoneOnce={mission.enteredZoneOnce}");
-                    continue; // 또는 continue
-                }
-
-                // 2) 한번도 IN 안 했고 지금도 OUT이면 → Remove 금지(유지)
-                if (mission.enteredZoneOnce == false && inside == false)
-                {
-                    // 필요하면 로그는 Debug 수준 권장(너무 많이 찍힘)
-                    // EventLogger.Info($"[Traffic][CompletedToRemove] Not entered yet. Keep. guid={mission.guid}");
-                    continue; // 또는 continue
+                        EventLogger.Info($"[Traffic][CompletedToRemove] First ENTER. Mark. guid={mission.guid},missionName={mission.name}, workerId={worker.id},workerName={worker.name}" +
+                                         $", zoneId={Zone.zoneId}, zoneName = {Zone.name}, enteredZoneOnce={mission.enteredZoneOnce}");
+                        continue; // 또는 continue
+                    }
+                    else
+                    // 2) 한번도 IN 안 했고 지금도 OUT이면 → Remove 금지(유지)
+                    {
+                        // 필요하면 로그는 Debug 수준 권장(너무 많이 찍힘)
+                        // EventLogger.Info($"[Traffic][CompletedToRemove] Not entered yet. Keep. guid={mission.guid}");
+                        continue; // 또는 continue
+                    }
                 }
 
                 // 3) IN을 한번이라도 했고, 이제 OUT이면 → Remove

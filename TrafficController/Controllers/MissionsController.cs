@@ -107,8 +107,15 @@ namespace TrafficController.Controllers
             var mission = _repository.Missions.GetById(Id);
             if (mission != null)
             {
-                updateStateMission(mission, nameof(MissionState.CANCELED), true);
+                if(mission.state == nameof(MissionState.COMPLETED))
+                {
                 _repository.Missions.Remove(mission);
+                }
+                else
+                {
+                    updateStateMission(mission, nameof(MissionState.COMPLETED), true);
+                    _repository.Missions.Remove(mission);
+                }
                 return Ok(mission);
             }
             else
