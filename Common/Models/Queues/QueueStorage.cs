@@ -7,7 +7,6 @@ namespace Common.Models.Queues
         #region MQTT
 
         private static readonly ConcurrentQueue<MqttPublishMessageDto> publishOrder = new ConcurrentQueue<MqttPublishMessageDto>();
-        private static readonly ConcurrentQueue<MqttPublishMessageDto> publishJob = new ConcurrentQueue<MqttPublishMessageDto>();
         private static readonly ConcurrentQueue<MqttPublishMessageDto> publishMission = new ConcurrentQueue<MqttPublishMessageDto>();
         private static readonly ConcurrentQueue<MqttPublishMessageDto> publishPosition = new ConcurrentQueue<MqttPublishMessageDto>();
 
@@ -16,6 +15,7 @@ namespace Common.Models.Queues
         private static readonly ConcurrentQueue<MqttSubscribeMessageDto> mqttSubscribeMiddleware = new ConcurrentQueue<MqttSubscribeMessageDto>();
         private static readonly ConcurrentQueue<MqttSubscribeMessageDto> mqttSubscribeCarrier = new ConcurrentQueue<MqttSubscribeMessageDto>();
         private static readonly ConcurrentQueue<MqttSubscribeMessageDto> mqttSubscribeElevator = new ConcurrentQueue<MqttSubscribeMessageDto>();
+        private static readonly ConcurrentQueue<MqttSubscribeMessageDto> mqttSubscribeJob = new ConcurrentQueue<MqttSubscribeMessageDto>();
 
         public static void MqttEnqueuePublishOrder(MqttPublishMessageDto item)
         {
@@ -27,18 +27,6 @@ namespace Common.Models.Queues
         {
             //실행하면 순차적으로 하나씩 Return한다
             return publishOrder.TryDequeue(out item);
-        }
-
-        public static void MqttEnqueuePublishJob(MqttPublishMessageDto item)
-        {
-            //미션 및 Queue 를 실행한부분을 순차적으로 추가시킨다
-            publishJob.Enqueue(item);
-        }
-
-        public static bool MqttTryDequeuePublishJob(out MqttPublishMessageDto item)
-        {
-            //실행하면 순차적으로 하나씩 Return한다
-            return publishJob.TryDequeue(out item);
         }
 
         public static void MqttEnqueuePublishMission(MqttPublishMessageDto item)
@@ -65,6 +53,7 @@ namespace Common.Models.Queues
             return publishPosition.TryDequeue(out item);
         }
 
+
         public static void MqttEnqueueSubscribeWorker(MqttSubscribeMessageDto item)
         {
             //미션 및 Queue 를 실행한부분을 순차적으로 추가시킨다
@@ -75,6 +64,18 @@ namespace Common.Models.Queues
         {
             //실행하면 순차적으로 하나씩 Return한다
             return mqttSubscribeWorker.TryDequeue(out item);
+        }
+
+        public static void MqttEnqueueSubscribeJob(MqttSubscribeMessageDto item)
+        {
+            //미션 및 Queue 를 실행한부분을 순차적으로 추가시킨다
+            mqttSubscribeJob.Enqueue(item);
+        }
+
+        public static bool MqttTryDequeueSubscribeJob(out MqttSubscribeMessageDto item)
+        {
+            //실행하면 순차적으로 하나씩 Return한다
+            return mqttSubscribeJob.TryDequeue(out item);
         }
 
         public static void MqttEnqueueSubscribeMiddleware(MqttSubscribeMessageDto item)

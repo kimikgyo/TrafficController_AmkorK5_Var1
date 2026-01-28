@@ -45,7 +45,7 @@ namespace TrafficController.MQTTs.Interfaces
                                 Payload = payload,
                                 Timestamp = DateTime.Now,
                             });
-                            _mqttProcess.Mission();
+                            _mqttProcess.PublishMission();
                             break;
 
                         case nameof(TopicType.position):
@@ -55,7 +55,7 @@ namespace TrafficController.MQTTs.Interfaces
                                 Payload = payload,
                                 Timestamp = DateTime.Now,
                             });
-                            _mqttProcess.Position();
+                            _mqttProcess.PublishPosition();
                             break;
                     }
                 }
@@ -66,6 +66,9 @@ namespace TrafficController.MQTTs.Interfaces
         {
             switch (subscribe.type)
             {
+                case nameof(TopicType.job):
+                    QueueStorage.MqttEnqueueSubscribeJob(subscribe);
+                    break;
                 case nameof(TopicType.worker):
                     QueueStorage.MqttEnqueueSubscribeWorker(subscribe);
                     break;
@@ -94,7 +97,8 @@ namespace TrafficController.MQTTs.Interfaces
         public void HandleReceivedMqttMessage()
         {
             _mqttProcess.HandleReceivedMqttMessage();
-            _mqttProcess.Worker();
+            _mqttProcess.SubscribeWorker();
+            _mqttProcess.SubscribeJob();
         }
     }
 }

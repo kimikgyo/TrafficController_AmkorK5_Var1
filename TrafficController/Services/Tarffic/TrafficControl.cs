@@ -35,7 +35,7 @@ namespace TrafficController.Services
             var missions = _repository.Missions.GetAll();
             if (missions == null)
             {
-                EventLogger.Warn("[Traffic][PendingToExecuting] Mission list is null. Aborting.");
+                EventLogger.Warn("[Traffic][PendingToExecuting] PublishMission list is null. Aborting.");
                 return;
             }
 
@@ -56,7 +56,7 @@ namespace TrafficController.Services
             {
                 if (mission == null)
                 {
-                    EventLogger.Warn("[Traffic][PendingToExecuting] Mission instance is null. Skipping.");
+                    EventLogger.Warn("[Traffic][PendingToExecuting] PublishMission instance is null. Skipping.");
                     continue;
                 }
 
@@ -88,7 +88,7 @@ namespace TrafficController.Services
             var missions = _repository.Missions.GetAll();
             if (missions == null)
             {
-                EventLogger.Warn("[Traffic][SkipedToRemove] Mission list is null. Aborting.");
+                EventLogger.Warn("[Traffic][SkipedToRemove] PublishMission list is null. Aborting.");
                 return;
             }
 
@@ -101,17 +101,17 @@ namespace TrafficController.Services
                 if (skipedMission == null) continue;
 
                 _repository.Missions.Remove(skipedMission);
-                EventLogger.Info($"[Traffic][SkipedToRemove] Mission Remove missionId={skipedMission.guid}, missionName={skipedMission.name}");
+                EventLogger.Info($"[Traffic][SkipedToRemove] PublishMission Remove missionId={skipedMission.guid}, missionName={skipedMission.name}");
             }
         }
 
         /// <summary>
         /// 3) GroupMissionsByArea (LINKEDAREA 기준 그룹핑)
         /// 모든 미션을 AreaKey(LinkedArea) 기준으로 그룹핑하여
-        /// Dictionary<string, List<Mission>> 형태로 반환한다.
+        /// Dictionary<string, List<PublishMission>> 형태로 반환한다.
         ///
         /// key   : AreaKey (= LinkedArea value)
-        /// value : 그 Area에 속한 Mission 리스트
+        /// value : 그 Area에 속한 PublishMission 리스트
         /// </summary>
         private Dictionary<string, List<Mission>> GroupMissionsByArea()
         {
@@ -132,7 +132,7 @@ namespace TrafficController.Services
             var missions = _repository.Missions.GetAll();
             if (missions == null)
             {
-                EventLogger.Warn("[Traffic][GroupMissionsByArea] Mission list is null. Return empty result.");
+                EventLogger.Warn("[Traffic][GroupMissionsByArea] PublishMission list is null. Return empty result.");
                 return groupByArea;
             }
 
@@ -143,7 +143,7 @@ namespace TrafficController.Services
             {
                 if (mission == null)
                 {
-                    EventLogger.Warn("[Traffic][GroupMissionsByArea] Mission is null. Skipping.");
+                    EventLogger.Warn("[Traffic][GroupMissionsByArea] PublishMission is null. Skipping.");
                     continue;
                 }
 
@@ -234,7 +234,7 @@ namespace TrafficController.Services
             var missions = _repository.Missions.GetAll();
             if (missions == null)
             {
-                EventLogger.Warn("[Traffic][CompletedToRemove] Mission list is null. Aborting.");
+                EventLogger.Warn("[Traffic][CompletedToRemove] PublishMission list is null. Aborting.");
                 return;
             }
 
@@ -273,20 +273,20 @@ namespace TrafficController.Services
                     continue;
                 }
 
-                // Worker 배정 확인
+                // SubscribeWorker 배정 확인
                 if (string.IsNullOrWhiteSpace(mission.assignedWorkerId))
                 {
-                    // Worker 정보가 없으면 정책상 삭제
+                    // SubscribeWorker 정보가 없으면 정책상 삭제
                     EventLogger.Warn($"[Traffic][CompletedToRemove] assignedWorkerId empty. Remove mission. guid={mission.guid}, ZoneKey={ZoneKey}");
                     _repository.Missions.Remove(mission);
                     continue;
                 }
 
-                // Worker 조회
+                // SubscribeWorker 조회
                 var worker = _repository.Workers.GetById(mission.assignedWorkerId);
                 if (worker == null)
                 {
-                    EventLogger.Warn($"[Traffic][CompletedToRemove] Worker not found. workerId={mission.assignedWorkerId}, guid={mission.guid}. Remove mission.");
+                    EventLogger.Warn($"[Traffic][CompletedToRemove] SubscribeWorker not found. workerId={mission.assignedWorkerId}, guid={mission.guid}. Remove mission.");
                     _repository.Missions.Remove(mission);
                     continue;
                 }
@@ -353,7 +353,7 @@ namespace TrafficController.Services
                 else
                 {
                     // Area 내부면 유지
-                    EventLogger.Info($"[Traffic][CompletedToRemove] Worker still inside polygon Zone. Keep mission. guid={mission.guid}, missionName={mission.name}, workerId={worker.id},workerName={worker.name}" +
+                    EventLogger.Info($"[Traffic][CompletedToRemove] SubscribeWorker still inside polygon Zone. Keep mission. guid={mission.guid}, missionName={mission.name}, workerId={worker.id},workerName={worker.name}" +
                                          $", zoneId={Zone.zoneId}, zoneName = {Zone.name}, enteredZoneOnce={mission.enteredZoneOnce}");
                 }
             }

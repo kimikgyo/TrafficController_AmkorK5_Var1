@@ -8,7 +8,7 @@ namespace TrafficController.MQTTs
 {
     public partial class MqttProcess
     {
-        public void Worker()
+        public void SubscribeWorker()
         {
             while (QueueStorage.MqttTryDequeueSubscribeWorker(out MqttSubscribeMessageDto subscribe))
             {

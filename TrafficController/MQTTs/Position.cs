@@ -6,7 +6,7 @@ namespace TrafficController.MQTTs
 {
     public partial class MqttProcess
     {
-        public void Position()
+        public void PublishPosition()
         {
             while (QueueStorage.MqttTryDequeuePublishPosition(out MqttPublishMessageDto cmd))
             {
