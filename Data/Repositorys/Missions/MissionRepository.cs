@@ -298,25 +298,40 @@ namespace Data.Repositorys.Jobs
             }
         }
 
+        /// <summary>
+        /// 주어진 key에 일치하는 파라미터를 찾아 반환합니다.
+        /// </summary>
+        /// <param name="parameters">검색 대상 파라미터 리스트</param>
+        /// <param name="key">찾을 파라미터의 키 (대소문자 무시)</param>
+        /// <returns>일치하는 파라미터 객체, 없으면 null</returns>
         public Parameter FindParameterByKey(List<Parameter> parameters, string key)
         {
+            // [방어 1] 파라미터 리스트가 null이면 검색 불가 → null 반환
             if (parameters == null)
                 return null;
 
+            // [방어 2] 검색할 key가 null이거나 공백이면 검색 불가 → null 반환
             if (string.IsNullOrWhiteSpace(key))
                 return null;
 
+            // [정규화] 입력받은 key를 대문자로 변환 (대소문자 무시 비교를 위함)
+            // 예: "linkedZone" → "LINKEDZONE"
             string targetKey = key.ToUpper();
 
+            // [순회] 파라미터 리스트의 각 항목을 하나씩 확인
             foreach (var p in parameters)
             {
+                // [방어 3] 리스트 내 개별 파라미터의 key가 null이면 스킵
                 if (p.key == null)
                     continue;
 
+                // [비교] 파라미터의 key를 대문자로 변환 후 targetKey와 비교
+                // 일치하면 해당 파라미터 객체를 즉시 반환
                 if (p.key.ToUpper() == targetKey)
                     return p;
             }
 
+            // [결과] 일치하는 파라미터를 찾지 못했으면 null 반환
             return null;
         }
 
