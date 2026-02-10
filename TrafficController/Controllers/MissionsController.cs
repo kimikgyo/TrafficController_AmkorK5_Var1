@@ -168,10 +168,10 @@ namespace TrafficController.Controllers
         //}
 
         // DELETE api/<ValuesController>/5
-        [HttpDelete("{Id}")]
-        public ActionResult Delete(string Id)
+        [HttpDelete("{acsMissionId}")]
+        public ActionResult Delete(string acsMissionId)
         {
-            var mission = _repository.Missions.GetById(Id);
+            var mission = _repository.Missions.GetByACSMissionId(acsMissionId);
             if (mission != null)
             {
                 if (mission.state == nameof(MissionState.COMPLETED))
